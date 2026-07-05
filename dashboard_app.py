@@ -785,6 +785,20 @@ with tabs[ti]:
                                         st.plotly_chart(fig, use_container_width=True)
                                     else:
                                         st.caption("Sem colunas de origem/destino.")
+                                elif sk == "Hoteis":
+                                    cid_col = next((c for c in df_st.columns if "cidade" in c.lower()), None)
+                                    if cid_col:
+                                        st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total por Cidade</h3>", unsafe_allow_html=True)
+                                        scid_st = df_st.groupby(cid_col)[val_col].sum().sort_values(ascending=True)
+                                        fig = go.Figure(go.Bar(x=scid_st.values, y=scid_st.index, orientation="h",
+                                            marker=dict(color=scid_st.values, colorscale="Blues", line=dict(width=0)),
+                                            text=scid_st.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
+                                        fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10),
+                                            paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
+                                        fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
+                                        st.plotly_chart(fig, use_container_width=True)
+                                    else:
+                                        st.caption("Sem coluna de cidade.")
                                 elif grupo_col:
                                     st.subheader("Gastos: Solicitante x Categoria")
                                     gs_st = df_st.groupby(["Solicitante", grupo_col])[val_col].sum().reset_index()
