@@ -57,6 +57,8 @@ st.markdown("""
     .stAlert { background: #1a2340; color: #e8edf5; border-color: #253052; }
     .login-container { max-width: 380px; margin: 0 auto; padding: 2rem 0; }
     .login-container .stImage { text-align: center; }
+    .login-container .stTextInput input { padding: 0.35rem 0.6rem; font-size: 0.85rem; }
+    .login-container .st-emotion-cache-1kyxreq { gap: 0.3rem; }
     .change-pw-container { max-width: 400px; margin: 2rem auto; }
 </style>
 """, unsafe_allow_html=True)
@@ -98,16 +100,18 @@ if not st.session_state.user:
         st.image(logo_login)
     except:
         st.markdown("<h1 style='color:#e8edf5;'>Dashboard COPASTUR</h1>", unsafe_allow_html=True)
-    st.markdown("<h3 style='color:#e8edf5; margin-bottom:1.5rem;'>Acessar o sistema</h3>", unsafe_allow_html=True)
-    with st.form("login_form"):
-        email = st.text_input("Email", placeholder="seu@email.com.br")
-        pw = st.text_input("Senha", placeholder="Digite sua senha", type="password")
-        if st.form_submit_button("Entrar", type="primary", use_container_width=True):
-            if email in _users and _users[email]["pw"] == _hash(pw):
-                st.session_state.user = email
-                st.rerun()
-            else:
-                st.error("Email ou senha inválidos")
+    st.markdown("<h3 style='color:#e8edf5; margin-bottom:1.5rem;'>Painel - Fujicom / Copastur</h3>", unsafe_allow_html=True)
+    c1, c2, c3 = st.columns([1, 2, 1])
+    with c2:
+        with st.form("login_form"):
+            email = st.text_input("Email", placeholder="seu@email.com.br")
+            pw = st.text_input("Senha", placeholder="Digite sua senha", type="password")
+            if st.form_submit_button("Entrar", type="primary", use_container_width=True):
+                if email in _users and _users[email]["pw"] == _hash(pw):
+                    st.session_state.user = email
+                    st.rerun()
+                else:
+                    st.error("Email ou senha inválidos")
     st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
