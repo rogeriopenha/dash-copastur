@@ -97,15 +97,15 @@ _users = _load_users()
 # ─── LOGIN SCREEN ───
 if not st.session_state.user:
     st.markdown('<div class="login-container">', unsafe_allow_html=True)
-    try:
-        logo_login = Image.open(logo_path)
-        logo_login = logo_login.resize((220, int(logo_login.height * 220 / logo_login.width)))
-        st.image(logo_login)
-    except:
-        st.markdown("<h1 style='color:#e8edf5;'>Dashboard COPASTUR</h1>", unsafe_allow_html=True)
-    st.markdown("<h3 style='color:#e8edf5; margin-bottom:1.5rem;'>Painel - Fujicom / Copastur</h3>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns([1, 1, 1])
     with c2:
+        try:
+            logo_login = Image.open(logo_path)
+            logo_login = logo_login.resize((220, int(logo_login.height * 220 / logo_login.width)))
+            st.image(logo_login)
+        except:
+            st.markdown("<h1 style='color:#e8edf5;'>Dashboard COPASTUR</h1>", unsafe_allow_html=True)
+        st.markdown("<h3 style='color:#e8edf5; margin-bottom:1.5rem;'>Painel - Fujicom / Copastur</h3>", unsafe_allow_html=True)
         with st.form("login_form"):
             email = st.text_input("Email", placeholder="seu@email.com.br")
             pw = st.text_input("Senha", placeholder="Digite sua senha", type="password")
