@@ -769,8 +769,22 @@ with tabs[ti]:
                             st.markdown('<div class="card">', unsafe_allow_html=True)
                             gc1, gc2 = st.columns([1, 1])
                             with gc1:
-                                st.subheader("Gastos: Solicitante x Categoria")
-                                if grupo_col:
+                                if sk == "Aereos":
+                                    tr_col = next((c for c in df_st.columns if "trecho" in c.lower()), None)
+                                    if tr_col:
+                                        st.subheader("Gastos: Solicitante x Trecho")
+                                        gs_st = df_st.groupby(["Solicitante", tr_col])[val_col].sum().reset_index()
+                                        fig = px.bar(gs_st, x="Solicitante", y=val_col, color=tr_col,
+                                            color_discrete_sequence=px.colors.qualitative.Bold,
+                                            text_auto=".2s", barmode="group")
+                                        fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=60),
+                                            paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(title=None))
+                                        fig.update_traces(hovertemplate="R$ %{y:,.2f}<extra></extra>")
+                                        st.plotly_chart(fig, use_container_width=True)
+                                    else:
+                                        st.caption("Sem coluna de trecho.")
+                                elif grupo_col:
+                                    st.subheader("Gastos: Solicitante x Categoria")
                                     gs_st = df_st.groupby(["Solicitante", grupo_col])[val_col].sum().reset_index()
                                     fig = px.bar(gs_st, x="Solicitante", y=val_col, color=grupo_col,
                                         color_discrete_sequence=px.colors.qualitative.Bold,
