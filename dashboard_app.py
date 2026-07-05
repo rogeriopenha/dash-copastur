@@ -240,9 +240,22 @@ cat_map = {
     "Estacionamento": "🅿️", "Outros": "📌",
     "Aéreo": "🛩️", "Hospedagem": "🏨", "Transporte": "🚗",
 }
-df["Ícone"] = df["Categoria"].map(cat_map).fillna("📌")
 
-date_cols = [c for c in df.columns if "data" in c.lower() or "emiss" in c.lower() or "viagem" in c.lower()]
+# --- Adaptive column mapping ---
+COL_CATEGORIA = next((c for c in df.columns if any(k in c.lower() for k in ["categoria", "tipo", "serviço", "despesa"])), None)
+COL_STATUS = next((c for c in df.columns if "status" in c.lower()), None)
+COL_VALOR = next((c for c in df.columns if any(k in c.lower() for k in ["valor", "total", "preço", "preco", "custo", "montante"])), None)
+COL_SOLICITANTE = next((c for c in df.columns if any(k in c.lower() for k in ["solicitante", "requisitante", "usuario", "usuário", "nome", "colaborador"])), None)
+COL_FORNECEDOR = next((c for c in df.columns if any(k in c.lower() for k in ["fornecedor", "transportadora", "empresa", "parceiro"])), None)
+COL_DESTINO = next((c for c in df.columns if any(k in c.lower() for k in ["destino", "cidade", "local", "origem"])), None)
+COL_CCUSTO = next((c for c in df.columns if any(k in c.lower() for k in ["centro", "custo", "departamento", "unidade", "divisão"])), None)
+COL_PEDIDO = next((c for c in df.columns if any(k in c.lower() for k in ["pedido", "os", "ordem", "num", "id", "chave"])), None)
+COL_DATA = next((c for c in df.columns if any(k in c.lower() for k in ["data", "emissão", "emissao", "criação", "criacao"])), None)
+
+if COL_CATEGORIA:
+    df["Ícone"] = df[COL_CATEGORIA].map(cat_map).fillna("📌")
+
+date_cols = [c for c in df.columns if any(k in c.lower() for k in ["data", "emissão", "emissao", "viagem", "criação"])] if not COL_DATA else [COL_DATA]
 for c in date_cols:
     try:
         df[c] = pd.to_datetime(df[c], errors="coerce", dayfirst=True)
@@ -273,51 +286,51 @@ if data_cols_present:
         filtros_aplicados += 1
 
 # --- Filtro de status ---
-if "Status" in df.columns:
-    status_opts_all = sorted(df["Status"].dropna().unique())
+if COL_STATUS:
+    status_opts_all = sorted(df[COL_STATUS].dropna().unique())
     status_sel = st.sidebar.multiselect("Status", status_opts_all, default=status_opts_all)
     if status_sel and len(status_sel) < len(status_opts_all):
-        df_filtered = df_filtered[df_filtered["Status"].isin(status_sel)]
+        df_filtered = df_filtered[df_filtered[COL_STATUS].isin(status_sel)]
         filtros_aplicados += 1
 
 # --- Filtro de categoria ---
-if "Categoria" in df.columns:
-    cat_opts_all = sorted(df["Categoria"].dropna().unique())
+if COL_CATEGORIA:
+    cat_opts_all = sorted(df[COL_CATEGORIA].dropna().unique())
     cat_sel = st.sidebar.multiselect("Categoria", cat_opts_all, default=cat_opts_all)
     if cat_sel and len(cat_sel) < len(cat_opts_all):
-        df_filtered = df_filtered[df_filtered["Categoria"].isin(cat_sel)]
+        df_filtered = df_filtered[df_filtered[COL_CATEGORIA].isin(cat_sel)]
         filtros_aplicados += 1
 
 # --- Filtro de solicitante ---
-if "Solicitante" in df.columns:
-    sol_opts_all = sorted(df["Solicitante"].dropna().unique())
+if COL_SOLICITANTE:
+    sol_opts_all = sorted(df[COL_SOLICITANTE].dropna().unique())
     sol_sel = st.sidebar.multiselect("Solicitante", sol_opts_all, default=[])
     if sol_sel:
-        df_filtered = df_filtered[df_filtered["Solicitante"].isin(sol_sel)]
+        df_filtered = df_filtered[df_filtered[COL_SOLICITANTE].isin(sol_sel)]
         filtros_aplicados += 1
 
 # --- Filtro de centro de custo ---
-if "Centro Custo" in df.columns:
-    cc_opts_all = sorted(df["Centro Custo"].dropna().unique())
+if COL_CCUSTO:
+    cc_opts_all = sorted(df[COL_CCUSTO].dropna().unique())
     cc_sel = st.sidebar.multiselect("Centro de Custo", cc_opts_all, default=[])
     if cc_sel:
-        df_filtered = df_filtered[df_filtered["Centro Custo"].isin(cc_sel)]
+        df_filtered = df_filtered[df_filtered[COL_CCUSTO].isin(cc_sel)]
         filtros_aplicados += 1
 
 # --- Filtro de fornecedor ---
-if "Fornecedor" in df.columns:
-    forn_opts_all = sorted(df["Fornecedor"].dropna().unique())
+if COL_FORNECEDOR:
+    forn_opts_all = sorted(df[COL_FORNECEDOR].dropna().unique())
     forn_sel = st.sidebar.multiselect("Fornecedor", forn_opts_all, default=[])
     if forn_sel:
-        df_filtered = df_filtered[df_filtered["Fornecedor"].isin(forn_sel)]
+        df_filtered = df_filtered[df_filtered[COL_FORNECEDOR].isin(forn_sel)]
         filtros_aplicados += 1
 
 # --- Filtro de destino ---
-if "Destino" in df.columns:
-    dest_opts_all = sorted(df["Destino"].dropna().unique())
+if COL_DESTINO:
+    dest_opts_all = sorted(df[COL_DESTINO].dropna().unique())
     dest_sel = st.sidebar.multiselect("Destino", dest_opts_all, default=[])
     if dest_sel:
-        df_filtered = df_filtered[df_filtered["Destino"].isin(dest_sel)]
+        df_filtered = df_filtered[df_filtered[COL_DESTINO].isin(dest_sel)]
         filtros_aplicados += 1
 
 st.sidebar.markdown("---")
@@ -342,16 +355,9 @@ st.sidebar.markdown(
 # MAIN CONTENT
 # ================================================================
 
-total_gasto = df_filtered["Valor Total"].sum() if "Valor Total" in df_filtered.columns else 0
+total_gasto = df_filtered[COL_VALOR].sum() if COL_VALOR else 0
 total_pedidos = len(df_filtered)
 ticket_medio = total_gasto / total_pedidos if total_pedidos > 0 else 0
-
-valor_col = "Valor Total"
-qtd_col = None
-for c in ["Qtd Diárias", "Qtd Passageiros", "Quantidade", "Qtd"]:
-    if c in df_filtered.columns:
-        qtd_col = c
-        break
 
 st.markdown(f"""
 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
@@ -377,7 +383,10 @@ with k1:
     """, unsafe_allow_html=True)
 
 with k2:
-    delta_ped = df_filtered[df_filtered["Status"] == "Pendente"].shape[0] if "Status" in df_filtered.columns else 0
+    if COL_STATUS:
+        delta_ped = df_filtered[df_filtered[COL_STATUS].astype(str).str.contains("Pendente|Aberto|Andamento", case=False, na=False)].shape[0]
+    else:
+        delta_ped = 0
     pct_pend = delta_ped / total_pedidos * 100 if total_pedidos > 0 else 0
     st.markdown(f"""
     <div class="kpi-card">
@@ -397,8 +406,8 @@ with k3:
     """, unsafe_allow_html=True)
 
 with k4:
-    cat_count = df_filtered["Categoria"].nunique() if "Categoria" in df_filtered.columns else 0
-    forne_count = df_filtered["Fornecedor"].nunique() if "Fornecedor" in df_filtered.columns else 0
+    cat_count = df_filtered[COL_CATEGORIA].nunique() if COL_CATEGORIA else 0
+    forne_count = df_filtered[COL_FORNECEDOR].nunique() if COL_FORNECEDOR else 0
     st.markdown(f"""
     <div class="kpi-card">
         <div class="label">📊 Abrangência</div>
@@ -410,249 +419,253 @@ with k4:
 st.markdown("<br>", unsafe_allow_html=True)
 
 # --- TABS ---
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "📈 Visão Geral", "🏷️ Por Categoria", "👥 Por Solicitante",
-    "📅 Tendência Temporal", "📋 Tabela Exportável"
-])
+tab_labels = ["📈 Visão Geral"]
+if COL_CATEGORIA:
+    tab_labels.append("🏷️ Por Categoria")
+if COL_SOLICITANTE:
+    tab_labels.append("👥 Por Solicitante")
+if data_cols_present:
+    tab_labels.append("📅 Tendência Temporal")
+tab_labels.append("📋 Tabela Exportável")
 
-# ------ TAB 1: VISÃO GERAL ------
-with tab1:
+tabs = st.tabs(tab_labels)
+
+tab_idx = 0
+
+# Tab 1: Visão Geral
+with tabs[tab_idx]:
     c1, c2 = st.columns([1.2, 1])
     with c1:
         st.markdown('<div class="card">', unsafe_allow_html=True)
         st.subheader("Gastos por Categoria")
-        if "Categoria" in df_filtered.columns and valor_col in df_filtered.columns:
-            cat_sum = df_filtered.groupby("Categoria")[valor_col].sum().sort_values(ascending=True)
+        if COL_CATEGORIA and COL_VALOR:
+            cat_sum = df_filtered.groupby(COL_CATEGORIA)[COL_VALOR].sum().sort_values(ascending=True)
             fig = go.Figure(go.Bar(
-                x=cat_sum.values,
-                y=cat_sum.index,
-                orientation="h",
+                x=cat_sum.values, y=cat_sum.index, orientation="h",
                 marker=dict(color=cat_sum.values, colorscale="Blues", line=dict(width=0)),
-                text=cat_sum.apply(lambda x: f"R$ {x:,.0f}"),
-                textposition="outside",
+                text=cat_sum.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside",
             ))
             fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10),
-                              plot_bgcolor="white", xaxis=dict(visible=False, showgrid=False),
-                              yaxis=dict(title=None), hovermode="y")
+                              plot_bgcolor="white", xaxis=dict(visible=False, showgrid=False), yaxis=dict(title=None), hovermode="y")
             fig.update_traces(textfont=dict(size=11))
             st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("Coluna de categoria não encontrada na planilha")
         st.markdown("</div>", unsafe_allow_html=True)
 
     with c2:
         st.markdown('<div class="card">', unsafe_allow_html=True)
         st.subheader("Distribuição por Status")
-        if "Status" in df_filtered.columns:
-            status_count = df_filtered["Status"].value_counts()
-            colors_status = {"Aprovado": "#2e86c1", "Concluído": "#28b463",
-                             "Pendente": "#f39c12", "Cancelado": "#e74c3c"}
+        if COL_STATUS:
+            status_count = df_filtered[COL_STATUS].value_counts()
             fig = go.Figure(data=[go.Pie(
-                labels=status_count.index,
-                values=status_count.values,
-                hole=0.55,
-                marker=dict(colors=[colors_status.get(s, "#95a5a6") for s in status_count.index]),
-                textinfo="label+percent",
-                textposition="outside",
-                showlegend=False,
+                labels=status_count.index, values=status_count.values, hole=0.55,
+                marker=dict(colors=px.colors.sequential.Blues[::-1][:len(status_count)]),
+                textinfo="label+percent", textposition="outside", showlegend=False,
             )])
             fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10))
             st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("Coluna de status não encontrada")
         st.markdown("</div>", unsafe_allow_html=True)
 
     c1, c2 = st.columns([1, 1])
     with c1:
         st.markdown('<div class="card">', unsafe_allow_html=True)
         st.subheader("Top 10 Fornecedores")
-        if "Fornecedor" in df_filtered.columns and valor_col in df_filtered.columns:
-            forn_sum = df_filtered.groupby("Fornecedor")[valor_col].sum().sort_values(ascending=False).head(10)
+        if COL_FORNECEDOR and COL_VALOR:
+            forn_sum = df_filtered.groupby(COL_FORNECEDOR)[COL_VALOR].sum().sort_values(ascending=False).head(10)
             fig = px.bar(forn_sum, x=forn_sum.values, y=forn_sum.index, orientation="h",
                          color=forn_sum.values, color_continuous_scale="Blues")
             fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10),
                               plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
             fig.update_coloraxes(showscale=False)
             st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("Dados de fornecedor não disponíveis")
         st.markdown("</div>", unsafe_allow_html=True)
 
     with c2:
         st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("Destinos Mais Frequentes")
-        if "Destino" in df_filtered.columns:
-            dest_count = df_filtered["Destino"].value_counts().head(10)
+        if COL_DESTINO:
+            st.subheader("Destinos Mais Frequentes")
+            dest_count = df_filtered[COL_DESTINO].value_counts().head(10)
             fig = px.bar(dest_count, x=dest_count.values, y=dest_count.index, orientation="h",
                          color=dest_count.values, color_continuous_scale="Teal")
             fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10),
                               plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
             fig.update_coloraxes(showscale=False)
             st.plotly_chart(fig, use_container_width=True)
+        elif COL_SOLICITANTE:
+            st.subheader("Solicitantes com Mais Pedidos")
+            sol_count = df_filtered[COL_SOLICITANTE].value_counts().head(10)
+            fig = px.bar(sol_count, x=sol_count.values, y=sol_count.index, orientation="h",
+                         color=sol_count.values, color_continuous_scale="Teal")
+            fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10),
+                              plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
+            fig.update_coloraxes(showscale=False)
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("Dados de destino/solicitante não disponíveis")
+        st.markdown("</div>", unsafe_allow_html=True)
+    tab_idx += 1
+
+# Tab 2: Por Categoria
+if COL_CATEGORIA:
+    with tabs[tab_idx]:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        cat_pivot = df_filtered.groupby(COL_CATEGORIA).agg(
+            Total_Gasto=(COL_VALOR, "sum"),
+            Qtd_Pedidos=(COL_PEDIDO or "Nº Pedido", "count"),
+            Ticket_Medio=(COL_VALOR, "mean"),
+        ).reset_index() if COL_VALOR else pd.DataFrame({COL_CATEGORIA: df_filtered[COL_CATEGORIA].unique()})
+        if COL_VALOR:
+            cat_pivot.columns = [COL_CATEGORIA, "Total Gasto", "Qtd Pedidos", "Ticket Médio"]
+            cat_pivot["Total Gasto"] = cat_pivot["Total Gasto"].apply(lambda x: f"R$ {x:,.2f}")
+            cat_pivot["Ticket Médio"] = cat_pivot["Ticket Médio"].apply(lambda x: f"R$ {x:,.2f}")
+            cat_pivot["%"] = (df_filtered.groupby(COL_CATEGORIA)[COL_VALOR].sum()
+                              / total_gasto * 100).round(1).apply(lambda x: f"{x}%").values
+
+            c1, c2 = st.columns([1, 1.5])
+            with c1:
+                cat_sum = df_filtered.groupby(COL_CATEGORIA)[COL_VALOR].sum()
+                fig = go.Figure(data=[go.Pie(
+                    labels=cat_sum.index, values=cat_sum.values, hole=0.5,
+                    marker=dict(colors=px.colors.sequential.Blues[::-1][:len(cat_sum)]),
+                    textinfo="label+percent", textposition="outside", showlegend=False,
+                )])
+                fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10))
+                st.plotly_chart(fig, use_container_width=True)
+            with c2:
+                st.dataframe(cat_pivot, use_container_width=True, hide_index=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
-# ------ TAB 2: POR CATEGORIA ------
-with tab2:
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    if "Categoria" in df_filtered.columns:
-        cat_cols = ["Categoria", "Ícone"]
-        cat_pivot = df_filtered.groupby("Categoria").agg(
-            Total_Gasto=(valor_col, "sum"),
-            Qtd_Pedidos=("Nº Pedido", "count"),
-            Ticket_Medio=(valor_col, "mean"),
-        ).reset_index()
-        cat_pivot.columns = ["Categoria", "Total Gasto", "Qtd Pedidos", "Ticket Médio"]
-        cat_pivot["Total Gasto"] = cat_pivot["Total Gasto"].apply(lambda x: f"R$ {x:,.2f}")
-        cat_pivot["Ticket Médio"] = cat_pivot["Ticket Médio"].apply(lambda x: f"R$ {x:,.2f}")
-        cat_pivot["%"] = (df_filtered.groupby("Categoria")[valor_col].sum()
-                          / total_gasto * 100).round(1).apply(lambda x: f"{x}%").values
-
-        c1, c2 = st.columns([1, 1.5])
-        with c1:
-            cat_sum = df_filtered.groupby("Categoria")[valor_col].sum()
-            fig = go.Figure(data=[go.Pie(
-                labels=cat_sum.index,
-                values=cat_sum.values,
-                hole=0.5,
-                marker=dict(colors=px.colors.sequential.Blues[::-1][:len(cat_sum)]),
-                textinfo="label+percent",
-                textposition="outside",
-                showlegend=False,
-            )])
+        if COL_CATEGORIA and COL_CCUSTO and COL_VALOR:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.subheader("Gastos por Categoria × Centro de Custo")
+            heat = df_filtered.pivot_table(
+                values=COL_VALOR, index=COL_CATEGORIA, columns=COL_CCUSTO,
+                aggfunc="sum", fill_value=0)
+            fig = px.imshow(heat, text_auto=".0f", aspect="auto",
+                            color_continuous_scale="Blues",
+                            labels={"x": "Centro de Custo", "y": "Categoria", "color": "R$"})
             fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10))
             st.plotly_chart(fig, use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+        tab_idx += 1
 
-        with c2:
-            st.dataframe(cat_pivot, use_container_width=True, hide_index=True,
-                         column_config={c: st.column_config.TextColumn(c) for c in cat_pivot.columns})
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    if "Categoria" in df_filtered.columns and "Centro Custo" in df_filtered.columns:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("Gastos por Categoria × Centro de Custo")
-        heat = df_filtered.pivot_table(
-            values=valor_col, index="Categoria", columns="Centro Custo",
-            aggfunc="sum", fill_value=0
-        )
-        fig = px.imshow(heat, text_auto=".0f", aspect="auto",
-                        color_continuous_scale="Blues",
-                        labels={"x": "Centro de Custo", "y": "Categoria", "color": "R$"})
-        fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10))
-        st.plotly_chart(fig, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-# ------ TAB 3: POR SOLICITANTE ------
-with tab3:
-    if "Solicitante" in df_filtered.columns:
+# Tab 3: Por Solicitante
+if COL_SOLICITANTE:
+    with tabs[tab_idx]:
         c1, c2 = st.columns([1, 1])
         with c1:
             st.markdown('<div class="card">', unsafe_allow_html=True)
             st.subheader("Ranking de Gastos por Solicitante")
-            sol_sum = df_filtered.groupby("Solicitante")[valor_col].sum().sort_values(ascending=True)
-            fig = go.Figure(go.Bar(
-                x=sol_sum.values,
-                y=sol_sum.index,
-                orientation="h",
-                marker=dict(color=sol_sum.values, colorscale="Blues", line=dict(width=0)),
-                text=sol_sum.apply(lambda x: f"R$ {x:,.0f}"),
-                textposition="outside",
-            ))
-            fig.update_layout(height=450, margin=dict(l=10, r=10, t=10, b=10),
-                              plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
-            fig.update_traces(textfont=dict(size=10))
-            st.plotly_chart(fig, use_container_width=True)
+            if COL_VALOR:
+                sol_sum = df_filtered.groupby(COL_SOLICITANTE)[COL_VALOR].sum().sort_values(ascending=True)
+                fig = go.Figure(go.Bar(
+                    x=sol_sum.values, y=sol_sum.index, orientation="h",
+                    marker=dict(color=sol_sum.values, colorscale="Blues", line=dict(width=0)),
+                    text=sol_sum.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside",
+                ))
+                fig.update_layout(height=450, margin=dict(l=10, r=10, t=10, b=10),
+                                  plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
+                fig.update_traces(textfont=dict(size=10))
+                st.plotly_chart(fig, use_container_width=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
         with c2:
             st.markdown('<div class="card">', unsafe_allow_html=True)
             st.subheader("Qtd de Pedidos por Solicitante")
-            sol_count = df_filtered["Solicitante"].value_counts().sort_values(ascending=True)
+            sol_count = df_filtered[COL_SOLICITANTE].value_counts().sort_values(ascending=True)
             fig = go.Figure(go.Bar(
-                x=sol_count.values,
-                y=sol_count.index,
-                orientation="h",
+                x=sol_count.values, y=sol_count.index, orientation="h",
                 marker=dict(color=sol_count.values, colorscale="Teal", line=dict(width=0)),
-                text=sol_count.values,
-                textposition="outside",
+                text=sol_count.values, textposition="outside",
             ))
             fig.update_layout(height=450, margin=dict(l=10, r=10, t=10, b=10),
                               plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
             st.plotly_chart(fig, use_container_width=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
-        if "Categoria" in df_filtered.columns:
+        if COL_CATEGORIA and COL_VALOR:
             st.markdown('<div class="card">', unsafe_allow_html=True)
             st.subheader("Distribuição de Gastos por Solicitante e Categoria")
-            stacked = df_filtered.groupby(["Solicitante", "Categoria"])[valor_col].sum().reset_index()
-            fig = px.bar(stacked, x="Solicitante", y=valor_col, color="Categoria",
-                         color_discrete_sequence=px.colors.qualitative.Set2,
-                         text_auto=".0f")
+            stacked = df_filtered.groupby([COL_SOLICITANTE, COL_CATEGORIA])[COL_VALOR].sum().reset_index()
+            fig = px.bar(stacked, x=COL_SOLICITANTE, y=COL_VALOR, color=COL_CATEGORIA,
+                         color_discrete_sequence=px.colors.qualitative.Set2, text_auto=".0f")
             fig.update_layout(height=400, margin=dict(l=10, r=10, t=30, b=10),
                               plot_bgcolor="white", xaxis=dict(title=None), yaxis=dict(title="R$"))
             fig.update_xaxes(tickangle=45)
             st.plotly_chart(fig, use_container_width=True)
             st.markdown("</div>", unsafe_allow_html=True)
+        tab_idx += 1
 
-# ------ TAB 4: TENDÊNCIA TEMPORAL ------
-with tab4:
-    c1, c2 = st.columns([1, 1])
-    time_col = data_cols_present[0] if data_cols_present else None
+# Tab 4: Tendência Temporal
+if data_cols_present:
+    with tabs[tab_idx]:
+        time_col = data_cols_present[0]
+        c1, c2 = st.columns([1, 1])
+        with c1:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.subheader("Gastos ao Longo do Tempo")
+            if COL_VALOR:
+                trend = df_filtered.set_index(time_col).resample("ME")[COL_VALOR].sum().reset_index()
+                fig = px.line(trend, x=time_col, y=COL_VALOR, markers=True)
+                fig.update_traces(line=dict(color="#1a5276", width=3), marker=dict(size=6))
+                fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10),
+                                  plot_bgcolor="white", xaxis=dict(title=None), yaxis=dict(title="R$"))
+                fig.update_yaxes(tickprefix="R$ ")
+                st.plotly_chart(fig, use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
-    with c1:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("Gastos ao Longo do Tempo")
-        if time_col:
-            trend = df_filtered.set_index(time_col).resample("ME")[valor_col].sum().reset_index()
-            fig = px.line(trend, x=time_col, y=valor_col, markers=True)
-            fig.update_traces(line=dict(color="#1a5276", width=3), marker=dict(size=6))
-            fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10),
-                              plot_bgcolor="white", xaxis=dict(title=None), yaxis=dict(title="R$"))
-            fig.update_yaxes(tickprefix="R$ ")
-            st.plotly_chart(fig, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with c2:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("Volume de Pedidos por Mês")
-        if time_col:
-            count_trend = df_filtered.set_index(time_col).resample("ME")["Nº Pedido"].count().reset_index()
-            fig = px.bar(count_trend, x=time_col, y="Nº Pedido",
-                         color_discrete_sequence=["#2e86c1"])
+        with c2:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.subheader("Volume de Pedidos por Mês")
+            count_col = COL_PEDIDO if COL_PEDIDO else df.columns[0]
+            count_trend = df_filtered.set_index(time_col).resample("ME")[count_col].count().reset_index()
+            fig = px.bar(count_trend, x=time_col, y=count_col, color_discrete_sequence=["#2e86c1"])
             fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10),
                               plot_bgcolor="white", xaxis=dict(title=None), yaxis=dict(title="Pedidos"))
             st.plotly_chart(fig, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
-    c1, c2 = st.columns([1, 1])
-    with c1:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("Gastos por Dia da Semana")
-        if time_col and "Dia Semana" in df_filtered.columns:
-            dow_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-            dow_labels = {"Monday":"Seg","Tuesday":"Ter","Wednesday":"Qua",
-                          "Thursday":"Qui","Friday":"Sex","Saturday":"Sáb","Sunday":"Dom"}
-            dow = df_filtered.copy()
-            dow["Dia"] = dow[time_col].dt.day_name()
-            dow_sum = dow.groupby("Dia")[valor_col].sum().reindex(dow_order).fillna(0)
-            dow_sum.index = [dow_labels.get(d, d) for d in dow_sum.index]
-            fig = px.bar(dow_sum, x=dow_sum.index, y=valor_col, color_discrete_sequence=["#1a5276"])
-            fig.update_layout(height=300, margin=dict(l=10, r=10, t=10, b=10),
-                              plot_bgcolor="white", xaxis=dict(title=None), yaxis=dict(title="R$"))
-            st.plotly_chart(fig, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
+        c1, c2 = st.columns([1, 1])
+        with c1:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.subheader("Gastos por Dia da Semana")
+            if COL_VALOR:
+                dow_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+                dow_labels = {"Monday":"Seg","Tuesday":"Ter","Wednesday":"Qua",
+                              "Thursday":"Qui","Friday":"Sex","Saturday":"Sáb","Sunday":"Dom"}
+                dow = df_filtered.copy()
+                dow["Dia"] = dow[time_col].dt.day_name()
+                dow_sum = dow.groupby("Dia")[COL_VALOR].sum().reindex(dow_order).fillna(0)
+                dow_sum.index = [dow_labels.get(d, d) for d in dow_sum.index]
+                fig = px.bar(dow_sum, x=dow_sum.index, y=COL_VALOR, color_discrete_sequence=["#1a5276"])
+                fig.update_layout(height=300, margin=dict(l=10, r=10, t=10, b=10),
+                                  plot_bgcolor="white", xaxis=dict(title=None), yaxis=dict(title="R$"))
+                st.plotly_chart(fig, use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
-    with c2:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("Gastos por Trimestre")
-        if "Trimestre" in df_filtered.columns:
-            tri = df_filtered.groupby("Trimestre")[valor_col].sum().reset_index()
-            fig = px.bar(tri, x="Trimestre", y=valor_col, color="Trimestre",
-                         color_discrete_sequence=px.colors.sequential.Blues_r)
-            fig.update_layout(height=300, margin=dict(l=10, r=10, t=10, b=10),
-                              plot_bgcolor="white", xaxis=dict(title=None), yaxis=dict(title="R$"),
-                              showlegend=False)
-            st.plotly_chart(fig, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
+        with c2:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.subheader("Gastos por Mês")
+            if COL_VALOR:
+                df_filtered["Mês/Ano"] = df_filtered[time_col].dt.to_period("M").astype(str)
+                mes_sum = df_filtered.groupby("Mês/Ano")[COL_VALOR].sum().reset_index()
+                fig = px.bar(mes_sum, x="Mês/Ano", y=COL_VALOR, color="Mês/Ano",
+                             color_discrete_sequence=px.colors.sequential.Blues_r)
+                fig.update_layout(height=300, margin=dict(l=10, r=10, t=10, b=10),
+                                  plot_bgcolor="white", xaxis=dict(title=None), yaxis=dict(title="R$"),
+                                  showlegend=False)
+                st.plotly_chart(fig, use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+        tab_idx += 1
 
-# ------ TAB 5: TABELA EXPORTÁVEL ------
-with tab5:
+# Tab final: Tabela Exportável
+with tabs[tab_idx]:
     st.markdown('<div class="card">', unsafe_allow_html=True)
-
     st.subheader("📋 Dados Filtrados")
     st.caption(f"{len(df_filtered)} registros • {len(df_filtered.columns)} colunas")
 
@@ -663,9 +676,7 @@ with tab5:
         search = st.text_input("🔎 Buscar na tabela", placeholder="Digite para filtrar...")
     with col_right:
         col_sel = st.multiselect(
-            "Colunas para exportar",
-            options=export_cols,
-            default=export_cols,
+            "Colunas para exportar", options=export_cols, default=export_cols,
             label_visibility="collapsed",
         )
 
@@ -679,33 +690,23 @@ with tab5:
     for c in df_display.select_dtypes(include=["datetime64"]).columns:
         df_display[c] = df_display[c].dt.strftime("%d/%m/%Y")
 
-    st.dataframe(
-        df_display,
-        use_container_width=True,
-        hide_index=True,
-        height=450,
-    )
-
+    st.dataframe(df_display, use_container_width=True, hide_index=True, height=450)
     st.markdown("<br>", unsafe_allow_html=True)
 
     d1, d2, d3 = st.columns([1, 1, 1])
     with d1:
         csv = df_display.to_csv(index=False).encode("utf-8-sig")
         st.download_button(
-            "📥 Download CSV",
-            csv,
+            "📥 Download CSV", csv,
             f"pedidos_filtrados_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-            "text/csv",
-            use_container_width=True,
+            "text/csv", use_container_width=True,
         )
     with d2:
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
             df_display.to_excel(writer, index=False, sheet_name="Pedidos")
-        xlsx = output.getvalue()
         st.download_button(
-            "📥 Download Excel",
-            xlsx,
+            "📥 Download Excel", output.getvalue(),
             f"pedidos_filtrados_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True,
@@ -715,8 +716,6 @@ with tab5:
             "📥 Download JSON",
             df_display.to_json(orient="records", force_ascii=False, indent=2).encode("utf-8-sig"),
             f"pedidos_filtrados_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-            "application/json",
-            use_container_width=True,
+            "application/json", use_container_width=True,
         )
-
     st.markdown("</div>", unsafe_allow_html=True)
