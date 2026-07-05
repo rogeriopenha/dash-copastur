@@ -718,7 +718,31 @@ with tabs[ti]:
                     st.markdown('<div class="card">', unsafe_allow_html=True)
 
                     grupo_col = next((c for c in df_st.columns if any(k in c.lower() for k in ["categoria", "tipo", "despesa"])), None)
-                    if grupo_col:
+                    if sk == "Adiantamentos":
+                        mot_col = next((c for c in df_st.columns if "motivo" in c.lower()), None)
+                        if mot_col:
+                            ca1, ca2 = st.columns([1, 1])
+                            with ca1:
+                                st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total por Motivo Viagem</h3>", unsafe_allow_html=True)
+                                smot_st = df_st.groupby(mot_col)[val_col].sum().sort_values(ascending=True)
+                                fig = go.Figure(go.Bar(x=smot_st.values, y=smot_st.index, orientation="h",
+                                    marker=dict(color=smot_st.values, colorscale="Blues", line=dict(width=0)),
+                                    text=smot_st.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
+                                fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10),
+                                    paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
+                                fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
+                                st.plotly_chart(fig, use_container_width=True)
+                            with ca2:
+                                st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Distribuição por Motivo de Viagem</h3>", unsafe_allow_html=True)
+                                gc = df_st[mot_col].value_counts()
+                                fig = go.Figure(data=[go.Pie(labels=gc.index, values=gc.values, hole=0.55,
+                                    marker=dict(colors=px.colors.sequential.Blues[::-1][:len(gc)]),
+                                    textinfo="label+percent", textposition="outside", showlegend=False)])
+                                fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"))
+                                st.plotly_chart(fig, use_container_width=True)
+                        else:
+                            st.caption("Sem coluna de motivo viagem.")
+                    elif grupo_col:
                         if sk == "Transporte":
                             ct1, ct2 = st.columns([1, 1])
                             with ct1:
@@ -832,6 +856,34 @@ with tabs[ti]:
                                         st.plotly_chart(fig, use_container_width=True)
                                     else:
                                         st.caption("Sem coluna de cidade.")
+                                elif sk == "Transporte":
+                                    tr_cia = next((c for c in df_st.columns if "cia" in c.lower() or "companhia" in c.lower()), None)
+                                    if tr_cia:
+                                        st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Gastos: Solicitante x CIA</h3>", unsafe_allow_html=True)
+                                        gs_st = df_st.groupby(["Solicitante", tr_cia])[val_col].sum().reset_index()
+                                        fig = px.bar(gs_st, x="Solicitante", y=val_col, color=tr_cia,
+                                            color_discrete_sequence=px.colors.qualitative.Bold,
+                                            text_auto=".2s", barmode="group")
+                                        fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=60),
+                                            paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(title=None))
+                                        fig.update_traces(hovertemplate="R$ %{y:,.2f}<extra></extra>")
+                                        st.plotly_chart(fig, use_container_width=True)
+                                    else:
+                                        st.caption("Sem coluna de CIA.")
+                                elif sk == "Adiantamentos":
+                                    mot_col = next((c for c in df_st.columns if "motivo" in c.lower()), None)
+                                    if mot_col:
+                                        st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Gastos por Solicitante por Motivo de Viagem</h3>", unsafe_allow_html=True)
+                                        gs_st = df_st.groupby(["Solicitante", mot_col])[val_col].sum().reset_index()
+                                        fig = px.bar(gs_st, x="Solicitante", y=val_col, color=mot_col,
+                                            color_discrete_sequence=px.colors.qualitative.Bold,
+                                            text_auto=".2s", barmode="group")
+                                        fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=60),
+                                            paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(title=None))
+                                        fig.update_traces(hovertemplate="R$ %{y:,.2f}<extra></extra>")
+                                        st.plotly_chart(fig, use_container_width=True)
+                                    else:
+                                        st.caption("Sem coluna de motivo viagem.")
                                 elif grupo_col:
                                     st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Gastos: Solicitante x Categoria</h3>", unsafe_allow_html=True)
                                     gs_st = df_st.groupby(["Solicitante", grupo_col])[val_col].sum().reset_index()
