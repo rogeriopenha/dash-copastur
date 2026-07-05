@@ -719,45 +719,78 @@ with tabs[ti]:
 
                     grupo_col = next((c for c in df_st.columns if any(k in c.lower() for k in ["categoria", "tipo", "despesa"])), None)
                     if grupo_col:
-                        c1, c2 = st.columns([1, 1])
-                        with c1:
-                            st.subheader(f"Total por {grupo_col}")
-                            gs = df_st.groupby(grupo_col)[val_col].sum().sort_values(ascending=True).tail(15)
-                            fig = go.Figure(go.Bar(x=gs.values, y=gs.index, orientation="h",
-                                marker=dict(color=gs.values, colorscale="Blues", line=dict(width=0)),
-                                text=gs.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
-                            fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10),
-                                paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
-                            fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
-                            st.plotly_chart(fig, use_container_width=True)
-                        with c2:
-                            st.subheader(f"Distribuição por {grupo_col}")
-                            gc = df_st[grupo_col].value_counts()
-                            fig = go.Figure(data=[go.Pie(labels=gc.index, values=gc.values, hole=0.55,
-                                marker=dict(colors=px.colors.sequential.Blues[::-1][:len(gc)]),
-                                textinfo="label+percent", textposition="outside", showlegend=False)])
-                            fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"))
-                            st.plotly_chart(fig, use_container_width=True)
-
-                        desp_col = next((c for c in df_st.columns if "descri" in c.lower()), None)
-                        if desp_col and grupo_col:
-                            st.subheader("Subcategorias")
-                            cat_order = df_st.groupby(grupo_col)[val_col].sum().sort_values(ascending=False).index
-                            sc1, sc2 = st.columns(2)
-                            sc_cols = [sc1, sc2]
-                            for idx, cat in enumerate(cat_order):
-                                mask = df_st[grupo_col] == cat
-                                sub_df = df_st[mask].groupby(desp_col)[val_col].sum().sort_values(ascending=False).head(5)
-                                if sub_df.empty: continue
-                                with sc_cols[idx % 2]:
-                                    st.markdown(f"**{cat}** (R$ {sub_df.sum():,.2f})")
-                                    sub_fig = go.Figure(go.Bar(x=sub_df.values, y=sub_df.index, orientation="h",
-                                        marker=dict(color=sub_df.values, colorscale="Teal", line=dict(width=0)),
-                                        text=sub_df.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
-                                    sub_fig.update_layout(height=200, margin=dict(l=10, r=10, t=5, b=5),
+                        if sk == "Transporte":
+                            ct1, ct2 = st.columns([1, 1])
+                            with ct1:
+                                cia_col = next((c for c in df_st.columns if "cia" in c.lower() or "companhia" in c.lower()), None)
+                                if cia_col:
+                                    st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total por CIA</h3>", unsafe_allow_html=True)
+                                    scia_st = df_st.groupby(cia_col)[val_col].sum().sort_values(ascending=True)
+                                    fig = go.Figure(go.Bar(x=scia_st.values, y=scia_st.index, orientation="h",
+                                        marker=dict(color=scia_st.values, colorscale="Blues", line=dict(width=0)),
+                                        text=scia_st.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
+                                    fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10),
                                         paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
-                                    sub_fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
-                                    st.plotly_chart(sub_fig, use_container_width=True)
+                                    fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
+                                    st.plotly_chart(fig, use_container_width=True)
+                                else:
+                                    st.caption("Sem coluna de CIA.")
+                            with ct2:
+                                td_col = next((c for c in df_st.columns if "terminal" in c.lower()), None)
+                                if not td_col:
+                                    td_col = next((c for c in df_st.columns if "destino" in c.lower()), None)
+                                if td_col:
+                                    st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total por Terminal Destino</h3>", unsafe_allow_html=True)
+                                    std_st = df_st.groupby(td_col)[val_col].sum().sort_values(ascending=True)
+                                    fig = go.Figure(go.Bar(x=std_st.values, y=std_st.index, orientation="h",
+                                        marker=dict(color=std_st.values, colorscale="Blues", line=dict(width=0)),
+                                        text=std_st.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
+                                    fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10),
+                                        paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
+                                    fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
+                                    st.plotly_chart(fig, use_container_width=True)
+                                else:
+                                    st.caption("Sem coluna de terminal/destino.")
+                        else:
+                            c1, c2 = st.columns([1, 1])
+                            with c1:
+                                st.subheader(f"Total por {grupo_col}")
+                                gs = df_st.groupby(grupo_col)[val_col].sum().sort_values(ascending=True).tail(15)
+                                fig = go.Figure(go.Bar(x=gs.values, y=gs.index, orientation="h",
+                                    marker=dict(color=gs.values, colorscale="Blues", line=dict(width=0)),
+                                    text=gs.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
+                                fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10),
+                                    paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
+                                fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
+                                st.plotly_chart(fig, use_container_width=True)
+                            with c2:
+                                st.subheader(f"Distribuição por {grupo_col}")
+                                gc = df_st[grupo_col].value_counts()
+                                fig = go.Figure(data=[go.Pie(labels=gc.index, values=gc.values, hole=0.55,
+                                    marker=dict(colors=px.colors.sequential.Blues[::-1][:len(gc)]),
+                                    textinfo="label+percent", textposition="outside", showlegend=False)])
+                                fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"))
+                                st.plotly_chart(fig, use_container_width=True)
+
+                            desp_col = next((c for c in df_st.columns if "descri" in c.lower()), None)
+                            if desp_col and grupo_col:
+                                st.subheader("Subcategorias")
+                                cat_order = df_st.groupby(grupo_col)[val_col].sum().sort_values(ascending=False).index
+                                sc1, sc2 = st.columns(2)
+                                sc_cols = [sc1, sc2]
+                                for idx, cat in enumerate(cat_order):
+                                    mask = df_st[grupo_col] == cat
+                                    sub_df = df_st[mask].groupby(desp_col)[val_col].sum().sort_values(ascending=False).head(5)
+                                    if sub_df.empty: continue
+                                    with sc_cols[idx % 2]:
+                                        st.markdown(f"**{cat}** (R$ {sub_df.sum():,.2f})")
+                                        sub_fig = go.Figure(go.Bar(x=sub_df.values, y=sub_df.index, orientation="h",
+                                            marker=dict(color=sub_df.values, colorscale="Teal", line=dict(width=0)),
+                                            text=sub_df.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
+                                        sub_fig.update_layout(height=200, margin=dict(l=10, r=10, t=5, b=5),
+                                            paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
+                                        sub_fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
+                                        st.plotly_chart(sub_fig, use_container_width=True)
 
                     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -800,7 +833,7 @@ with tabs[ti]:
                                     else:
                                         st.caption("Sem coluna de cidade.")
                                 elif grupo_col:
-                                    st.subheader("Gastos: Solicitante x Categoria")
+                                    st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Gastos: Solicitante x Categoria</h3>", unsafe_allow_html=True)
                                     gs_st = df_st.groupby(["Solicitante", grupo_col])[val_col].sum().reset_index()
                                     fig = px.bar(gs_st, x="Solicitante", y=val_col, color=grupo_col,
                                         color_discrete_sequence=px.colors.qualitative.Bold,
