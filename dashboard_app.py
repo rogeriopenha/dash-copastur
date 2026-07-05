@@ -738,7 +738,7 @@ with tabs[ti]:
                                 fig = go.Figure(data=[go.Pie(labels=gc.index, values=gc.values, hole=0.65,
                                     marker=dict(colors=px.colors.sequential.Blues[::-1][:len(gc)]),
                                     textinfo="label+percent", textposition="outside", showlegend=False,
-                                    textfont=dict(size=10)])
+                                    textfont=dict(size=10))])
                                 fig.update_layout(height=350, margin=dict(l=60, r=60, t=20, b=60), paper_bgcolor="white", font=dict(color="#1a1a2e"))
                                 st.plotly_chart(fig, use_container_width=True)
                         else:
