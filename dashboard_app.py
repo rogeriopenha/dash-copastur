@@ -234,11 +234,21 @@ else:
 if df is None:
     st.stop()
 
+def parse_br_number(v):
+    if pd.isna(v) or v == "" or v is None:
+        return 0.0
+    v = str(v).strip().replace(".", "").replace(",", ".")
+    try:
+        return float(v)
+    except:
+        return 0.0
+
 cat_map = {
     "Passagem Aérea": "🛩️", "Hotel": "🏨", "Aluguel Carro": "🚗",
     "Alimentação": "🍽️", "Uber/Táxi": "🚕", "Pedágio": "🛣️",
     "Estacionamento": "🅿️", "Outros": "📌",
     "Aéreo": "🛩️", "Hospedagem": "🏨", "Transporte": "🚗",
+    "Serviços": "🔧", "Reembolso": "💵", "Adiantamento": "💰",
 }
 
 # --- Adaptive column mapping ---
@@ -254,6 +264,25 @@ COL_DATA = next((c for c in df.columns if any(k in c.lower() for k in ["data", "
 
 if COL_CATEGORIA:
     df["Ícone"] = df[COL_CATEGORIA].map(cat_map).fillna("📌")
+
+# --- Parse Brazilian number format ---
+STATUS_TRANSLATE = {
+    "awaitingApprovalOfCost": "Aguardando Aprov. Custo",
+    "awaitingIssue": "Aguardando Emissão",
+    "awaitingIssueCostApproval": "Aguardando Emissão",
+    "approved": "Aprovado",
+    "canceled": "Cancelado",
+    "finalized": "Finalizado",
+    "issued": "Emitido",
+    "pending": "Pendente",
+    "concluded": "Concluído",
+}
+
+if COL_VALOR:
+    df[COL_VALOR] = df[COL_VALOR].apply(parse_br_number)
+if COL_STATUS:
+    df[COL_STATUS] = df[COL_STATUS].astype(str).map(STATUS_TRANSLATE).fillna(df[COL_STATUS].astype(str))
+    df[COL_STATUS] = df[COL_STATUS].replace("", "Indefinido")
 
 date_cols = [c for c in df.columns if any(k in c.lower() for k in ["data", "emissão", "emissao", "viagem", "criação"])] if not COL_DATA else [COL_DATA]
 for c in date_cols:
