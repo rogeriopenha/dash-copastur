@@ -61,7 +61,7 @@ st.sidebar.markdown(
 st.sidebar.markdown("---")
 
 # --- Ambiente: Streamlit Cloud vs Local ---
-GCP_JSON_SECRET = st.secrets.get("gcp_service_account")
+GCP_JSON_SECRET = st.secrets.get("gcp_service_account") or st.secrets.get("gcp_service_account_json")
 SHEET_URL_SECRET = st.secrets.get("sheet_url")
 CLOUD_MODE = bool(GCP_JSON_SECRET and SHEET_URL_SECRET)
 
@@ -204,7 +204,10 @@ elif CLOUD_MODE:
     with st.spinner("Carregando dados do Google Sheets..."):
         try:
             import json
-            df = load_from_gsheets(json.dumps(GCP_JSON_SECRET), SHEET_URL_SECRET)
+            if isinstance(GCP_JSON_SECRET, str):
+                df = load_from_gsheets(GCP_JSON_SECRET, SHEET_URL_SECRET)
+            else:
+                df = load_from_gsheets(json.dumps(GCP_JSON_SECRET), SHEET_URL_SECRET)
             st.sidebar.success(f"✅ {len(df)} registros carregados da planilha")
         except Exception as e:
             st.sidebar.error(f"Erro ao carregar: {e}")
