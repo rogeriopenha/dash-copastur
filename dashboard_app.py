@@ -770,11 +770,13 @@ with tabs[ti]:
                             gc1, gc2 = st.columns([1, 1])
                             with gc1:
                                 if sk == "Aereos":
-                                    tr_col = next((c for c in df_st.columns if "trecho" in c.lower()), None)
-                                    if tr_col:
+                                    or_col = next((c for c in df_st.columns if "origem" in c.lower()), None)
+                                    des_col = next((c for c in df_st.columns if "destino" in c.lower()), None)
+                                    if or_col and des_col:
+                                        df_st["Trecho"] = df_st[or_col].astype(str).str.strip() + " → " + df_st[des_col].astype(str).str.strip()
                                         st.subheader("Gastos: Solicitante x Trecho")
-                                        gs_st = df_st.groupby(["Solicitante", tr_col])[val_col].sum().reset_index()
-                                        fig = px.bar(gs_st, x="Solicitante", y=val_col, color=tr_col,
+                                        gs_st = df_st.groupby(["Solicitante", "Trecho"])[val_col].sum().reset_index()
+                                        fig = px.bar(gs_st, x="Solicitante", y=val_col, color="Trecho",
                                             color_discrete_sequence=px.colors.qualitative.Bold,
                                             text_auto=".2s", barmode="group")
                                         fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=60),
@@ -782,7 +784,7 @@ with tabs[ti]:
                                         fig.update_traces(hovertemplate="R$ %{y:,.2f}<extra></extra>")
                                         st.plotly_chart(fig, use_container_width=True)
                                     else:
-                                        st.caption("Sem coluna de trecho.")
+                                        st.caption("Sem colunas de origem/destino.")
                                 elif grupo_col:
                                     st.subheader("Gastos: Solicitante x Categoria")
                                     gs_st = df_st.groupby(["Solicitante", grupo_col])[val_col].sum().reset_index()
