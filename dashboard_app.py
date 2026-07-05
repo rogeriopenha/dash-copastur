@@ -774,14 +774,14 @@ with tabs[ti]:
                                     des_col = next((c for c in df_st.columns if "destino" in c.lower()), None)
                                     if or_col and des_col:
                                         df_st["Trecho"] = df_st[or_col].astype(str).str.strip() + " → " + df_st[des_col].astype(str).str.strip()
-                                        st.subheader("Gastos: Solicitante x Trecho")
-                                        gs_st = df_st.groupby(["Solicitante", "Trecho"])[val_col].sum().reset_index()
-                                        fig = px.bar(gs_st, x="Solicitante", y=val_col, color="Trecho",
-                                            color_discrete_sequence=px.colors.qualitative.Bold,
-                                            text_auto=".2s", barmode="group")
-                                        fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=60),
-                                            paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(title=None))
-                                        fig.update_traces(hovertemplate="R$ %{y:,.2f}<extra></extra>")
+                                        st.subheader("Total por Trecho")
+                                        sto_st = df_st.groupby("Trecho")[val_col].sum().sort_values(ascending=True)
+                                        fig = go.Figure(go.Bar(x=sto_st.values, y=sto_st.index, orientation="h",
+                                            marker=dict(color=sto_st.values, colorscale="Blues", line=dict(width=0)),
+                                            text=sto_st.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
+                                        fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10),
+                                            paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
+                                        fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
                                         st.plotly_chart(fig, use_container_width=True)
                                     else:
                                         st.caption("Sem colunas de origem/destino.")
