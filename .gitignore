@@ -1,0 +1,55 @@
+# Service account keys (NUNCA commitar!)
+*.json
+*.pem
+
+# Environment
+.env
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Streamlit local config
+.streamlit/secrets.toml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp
+*.tmp
+~$*
+
+# Large binary files (GitHub 100MB limit)
+*.pbix
+*.zip
+*.mp4
+*.mp3
+*.avi
+*.mkv
+*.xlsm
+*.xlsb
+*.pdf
+*.docx
+*.pptx
+*.iso
+*.7z
+*.rar
+*.tar.gz
+*.exe
+*.msi
