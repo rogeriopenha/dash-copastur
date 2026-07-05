@@ -825,86 +825,28 @@ with tabs[ti]:
                         df_st["Solicitante"] = df_st[ped_col_st].astype(str).str.strip().map(SOLICITANTE_MAP)
                         if df_st["Solicitante"].notna().sum() > 0:
                             st.markdown('<div class="card">', unsafe_allow_html=True)
-                            gc1, gc2 = st.columns([1, 1])
-                            with gc1:
-                                if sk == "Aereos":
-                                    or_col = next((c for c in df_st.columns if "origem" in c.lower()), None)
-                                    des_col = next((c for c in df_st.columns if "destino" in c.lower()), None)
-                                    if or_col and des_col:
-                                        df_st["Trecho"] = df_st[or_col].astype(str).str.strip() + " → " + df_st[des_col].astype(str).str.strip()
-                                        st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total por Trecho <span style='font-size:10px; font-style:italic; color:#8899b8;'>(Valores dos 20 maiores trechos)</span></h3>", unsafe_allow_html=True)
-                                        sto_st = df_st.groupby("Trecho")[val_col].sum().sort_values(ascending=False).head(20).sort_values(ascending=True)
-                                        fig = go.Figure(go.Bar(x=sto_st.values, y=sto_st.index, orientation="h",
-                                            marker=dict(color=sto_st.values, colorscale="Blues", line=dict(width=0)),
-                                            text=sto_st.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
-                                        fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10),
-                                            paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
-                                        fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
-                                        st.plotly_chart(fig, use_container_width=True)
-                                    else:
-                                        st.caption("Sem colunas de origem/destino.")
-                                elif sk == "Hoteis":
-                                    cid_col = next((c for c in df_st.columns if "cidade" in c.lower()), None)
-                                    if cid_col:
-                                        st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total por Cidade <span style='font-size:10px; font-style:italic; color:#8899b8;'>(Total dos 20 maiores gastos por cidades)</span></h3>", unsafe_allow_html=True)
-                                        scid_st = df_st.groupby(cid_col)[val_col].sum().sort_values(ascending=False).head(20).sort_values(ascending=True)
-                                        fig = go.Figure(go.Bar(x=scid_st.values, y=scid_st.index, orientation="h",
-                                            marker=dict(color=scid_st.values, colorscale="Blues", line=dict(width=0)),
-                                            text=scid_st.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
-                                        fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10),
-                                            paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
-                                        fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
-                                        st.plotly_chart(fig, use_container_width=True)
-                                    else:
-                                        st.caption("Sem coluna de cidade.")
-                                elif sk == "Transporte":
-                                    tr_cia = next((c for c in df_st.columns if "cia" in c.lower() or "companhia" in c.lower()), None)
-                                    if tr_cia:
-                                        st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Gastos: Solicitante x CIA</h3>", unsafe_allow_html=True)
-                                        gs_st = df_st.groupby(["Solicitante", tr_cia])[val_col].sum().reset_index()
-                                        fig = px.bar(gs_st, x="Solicitante", y=val_col, color=tr_cia,
-                                            color_discrete_sequence=px.colors.qualitative.Bold,
-                                            text_auto=".2s", barmode="group")
-                                        fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=60),
-                                            paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(title=None))
-                                        fig.update_traces(hovertemplate="R$ %{y:,.2f}<extra></extra>")
-                                        st.plotly_chart(fig, use_container_width=True)
-                                    else:
-                                        st.caption("Sem coluna de CIA.")
-                                elif sk == "Adiantamentos":
-                                    mot_col = next((c for c in df_st.columns if "motivo" in c.lower()), None)
-                                    if mot_col:
-                                        st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total Solicitante X Motivo Viagem</h3>", unsafe_allow_html=True)
-                                        gs_st = df_st.groupby(["Solicitante", mot_col])[val_col].sum().reset_index()
-                                        sol_tot = gs_st.groupby("Solicitante")[val_col].sum()
-                                        gs_st["Pct"] = gs_st.apply(lambda r: r[val_col] / sol_tot[r["Solicitante"]] * 100 if sol_tot[r["Solicitante"]] > 0 else 0, axis=1).round(1)
-                                        fig = px.bar(gs_st, x="Solicitante", y="Pct", color=mot_col,
-                                            color_discrete_sequence=px.colors.qualitative.Bold,
-                                            barmode="stack", custom_data=[val_col])
-                                        fig.update_traces(texttemplate="%{y:.1f}%", textposition="inside", textfont=dict(size=9),
-                                            hovertemplate="R$ %{customdata[0]:,.2f} (%{y:.1f}%)<extra>%{fullData.name}</extra>")
-                                        fig.update_layout(height=400, margin=dict(l=10, r=10, t=40, b=60),
-                                            paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white",
-                                            yaxis=dict(title="%", range=[0, 110]))
-                                        for sol in sol_tot.index:
-                                            fig.add_annotation(x=sol, y=106, text=f"R$ {sol_tot[sol]:,.0f}",
-                                                showarrow=False, font=dict(size=9, color="#1a1a2e"))
-                                        st.plotly_chart(fig, use_container_width=True)
-                                    else:
-                                        st.caption("Sem coluna de motivo viagem.")
-                                elif grupo_col:
-                                    st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Gastos: Solicitante x Categoria</h3>", unsafe_allow_html=True)
-                                    gs_st = df_st.groupby(["Solicitante", grupo_col])[val_col].sum().reset_index()
-                                    fig = px.bar(gs_st, x="Solicitante", y=val_col, color=grupo_col,
+                            if sk == "Adiantamentos":
+                                mot_col = next((c for c in df_st.columns if "motivo" in c.lower()), None)
+                                if mot_col:
+                                    st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total Solicitante X Motivo Viagem</h3>", unsafe_allow_html=True)
+                                    gs_st = df_st.groupby(["Solicitante", mot_col])[val_col].sum().reset_index()
+                                    sol_tot = gs_st.groupby("Solicitante")[val_col].sum()
+                                    gs_st["Pct"] = gs_st.apply(lambda r: r[val_col] / sol_tot[r["Solicitante"]] * 100 if sol_tot[r["Solicitante"]] > 0 else 0, axis=1).round(1)
+                                    fig = px.bar(gs_st, x="Solicitante", y="Pct", color=mot_col,
                                         color_discrete_sequence=px.colors.qualitative.Bold,
-                                        text_auto=".2s", barmode="group")
-                                    fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=60),
-                                        paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(title=None))
-                                    fig.update_traces(hovertemplate="R$ %{y:,.2f}<extra></extra>")
+                                        barmode="stack", custom_data=[val_col])
+                                    fig.update_traces(texttemplate="%{y:.1f}%", textposition="inside", textfont=dict(size=9),
+                                        hovertemplate="R$ %{customdata[0]:,.2f} (%{y:.1f}%)<extra>%{fullData.name}</extra>")
+                                    fig.update_layout(height=350, margin=dict(l=10, r=10, t=40, b=80),
+                                        paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white",
+                                        yaxis=dict(title="%", range=[0, 110]),
+                                        legend=dict(orientation="h", y=-0.35, font=dict(size=8)))
+                                    for sol in sol_tot.index:
+                                        fig.add_annotation(x=sol, y=106, text=f"R$ {sol_tot[sol]:,.0f}",
+                                            showarrow=False, font=dict(size=9, color="#1a1a2e"))
                                     st.plotly_chart(fig, use_container_width=True)
                                 else:
-                                    st.caption("Sem coluna de categoria.")
-                            with gc2:
+                                    st.caption("Sem coluna de motivo viagem.")
                                 st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total por Solicitante</h3>", unsafe_allow_html=True)
                                 stotal_st = df_st.groupby("Solicitante")[val_col].sum().sort_values(ascending=True)
                                 fig = go.Figure(go.Bar(x=stotal_st.values, y=stotal_st.index, orientation="h",
@@ -914,6 +856,75 @@ with tabs[ti]:
                                     paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
                                 fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
                                 st.plotly_chart(fig, use_container_width=True)
+                            else:
+                                gc1, gc2 = st.columns([1, 1])
+                                with gc1:
+                                    if sk == "Aereos":
+                                        or_col = next((c for c in df_st.columns if "origem" in c.lower()), None)
+                                        des_col = next((c for c in df_st.columns if "destino" in c.lower()), None)
+                                        if or_col and des_col:
+                                            df_st["Trecho"] = df_st[or_col].astype(str).str.strip() + " → " + df_st[des_col].astype(str).str.strip()
+                                            st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total por Trecho <span style='font-size:10px; font-style:italic; color:#8899b8;'>(Valores dos 20 maiores trechos)</span></h3>", unsafe_allow_html=True)
+                                            sto_st = df_st.groupby("Trecho")[val_col].sum().sort_values(ascending=False).head(20).sort_values(ascending=True)
+                                            fig = go.Figure(go.Bar(x=sto_st.values, y=sto_st.index, orientation="h",
+                                                marker=dict(color=sto_st.values, colorscale="Blues", line=dict(width=0)),
+                                                text=sto_st.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
+                                            fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10),
+                                                paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
+                                            fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
+                                            st.plotly_chart(fig, use_container_width=True)
+                                        else:
+                                            st.caption("Sem colunas de origem/destino.")
+                                    elif sk == "Hoteis":
+                                        cid_col = next((c for c in df_st.columns if "cidade" in c.lower()), None)
+                                        if cid_col:
+                                            st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total por Cidade <span style='font-size:10px; font-style:italic; color:#8899b8;'>(Total dos 20 maiores gastos por cidades)</span></h3>", unsafe_allow_html=True)
+                                            scid_st = df_st.groupby(cid_col)[val_col].sum().sort_values(ascending=False).head(20).sort_values(ascending=True)
+                                            fig = go.Figure(go.Bar(x=scid_st.values, y=scid_st.index, orientation="h",
+                                                marker=dict(color=scid_st.values, colorscale="Blues", line=dict(width=0)),
+                                                text=scid_st.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
+                                            fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10),
+                                                paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
+                                            fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
+                                            st.plotly_chart(fig, use_container_width=True)
+                                        else:
+                                            st.caption("Sem coluna de cidade.")
+                                    elif sk == "Transporte":
+                                        tr_cia = next((c for c in df_st.columns if "cia" in c.lower() or "companhia" in c.lower()), None)
+                                        if tr_cia:
+                                            st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Gastos: Solicitante x CIA</h3>", unsafe_allow_html=True)
+                                            gs_st = df_st.groupby(["Solicitante", tr_cia])[val_col].sum().reset_index()
+                                            fig = px.bar(gs_st, x="Solicitante", y=val_col, color=tr_cia,
+                                                color_discrete_sequence=px.colors.qualitative.Bold,
+                                                text_auto=".2s", barmode="group")
+                                            fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=60),
+                                                paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(title=None))
+                                            fig.update_traces(hovertemplate="R$ %{y:,.2f}<extra></extra>")
+                                            st.plotly_chart(fig, use_container_width=True)
+                                        else:
+                                            st.caption("Sem coluna de CIA.")
+                                    elif grupo_col:
+                                        st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Gastos: Solicitante x Categoria</h3>", unsafe_allow_html=True)
+                                        gs_st = df_st.groupby(["Solicitante", grupo_col])[val_col].sum().reset_index()
+                                        fig = px.bar(gs_st, x="Solicitante", y=val_col, color=grupo_col,
+                                            color_discrete_sequence=px.colors.qualitative.Bold,
+                                            text_auto=".2s", barmode="group")
+                                        fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=60),
+                                            paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(title=None))
+                                        fig.update_traces(hovertemplate="R$ %{y:,.2f}<extra></extra>")
+                                        st.plotly_chart(fig, use_container_width=True)
+                                    else:
+                                        st.caption("Sem coluna de categoria.")
+                                with gc2:
+                                    st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total por Solicitante</h3>", unsafe_allow_html=True)
+                                    stotal_st = df_st.groupby("Solicitante")[val_col].sum().sort_values(ascending=True)
+                                    fig = go.Figure(go.Bar(x=stotal_st.values, y=stotal_st.index, orientation="h",
+                                        marker=dict(color=stotal_st.values, colorscale="Blues", line=dict(width=0)),
+                                        text=stotal_st.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
+                                    fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10),
+                                        paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
+                                    fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
+                                    st.plotly_chart(fig, use_container_width=True)
                     st.markdown("</div>", unsafe_allow_html=True)
 
                     st.markdown('<div class="card">', unsafe_allow_html=True)
