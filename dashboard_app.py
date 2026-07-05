@@ -775,7 +775,8 @@ with tabs[ti]:
                                     if or_col and des_col:
                                         df_st["Trecho"] = df_st[or_col].astype(str).str.strip() + " → " + df_st[des_col].astype(str).str.strip()
                                         st.subheader("Total por Trecho")
-                                        sto_st = df_st.groupby("Trecho")[val_col].sum().sort_values(ascending=True)
+                                        st.markdown("<p style='font-size:10px; font-style:italic; color:#8899b8; margin-top:-0.5rem;'>Valores dos 20 maiores trechos</p>", unsafe_allow_html=True)
+                                        sto_st = df_st.groupby("Trecho")[val_col].sum().sort_values(ascending=False).head(20).sort_values(ascending=True)
                                         fig = go.Figure(go.Bar(x=sto_st.values, y=sto_st.index, orientation="h",
                                             marker=dict(color=sto_st.values, colorscale="Blues", line=dict(width=0)),
                                             text=sto_st.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
