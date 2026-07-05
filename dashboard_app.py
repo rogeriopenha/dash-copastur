@@ -252,15 +252,37 @@ cat_map = {
 }
 
 # --- Adaptive column mapping ---
-COL_CATEGORIA = next((c for c in df.columns if any(k in c.lower() for k in ["categoria", "tipo", "serviço", "despesa"])), None)
-COL_STATUS = next((c for c in df.columns if "status" in c.lower()), None)
-COL_VALOR = next((c for c in df.columns if any(k in c.lower() for k in ["valor", "total", "preço", "preco", "custo", "montante"])), None)
-COL_SOLICITANTE = next((c for c in df.columns if any(k in c.lower() for k in ["solicitante", "requisitante", "usuario", "usuário", "nome", "colaborador"])), None)
-COL_FORNECEDOR = next((c for c in df.columns if any(k in c.lower() for k in ["fornecedor", "transportadora", "empresa", "parceiro"])), None)
-COL_DESTINO = next((c for c in df.columns if any(k in c.lower() for k in ["destino", "cidade", "local", "origem"])), None)
-COL_CCUSTO = next((c for c in df.columns if any(k in c.lower() for k in ["centro", "custo", "departamento", "unidade", "divisão"])), None)
-COL_PEDIDO = next((c for c in df.columns if any(k in c.lower() for k in ["pedido", "os", "ordem", "num", "id", "chave"])), None)
-COL_DATA = next((c for c in df.columns if any(k in c.lower() for k in ["data", "emissão", "emissao", "criação", "criacao"])), None)
+COL_CATEGORIA = None
+for kw in ["categoria", "tipo", "serviço", "despesa"]:
+    candidates = [c for c in df.columns if kw in c.lower() and not any(k in c.lower() for k in ["data", "numero"])]
+    if candidates:
+        COL_CATEGORIA = candidates[0]
+        break
+
+COL_STATUS = None
+for kw in ["status viagem", "status despesa", "status"]:
+    candidates = [c for c in df.columns if kw in c.lower()]
+    if candidates:
+        COL_STATUS = candidates[0]
+        break
+
+COL_VALOR = None
+for kw in ["total", "valor", "montante"]:
+    candidates = [c for c in df.columns if kw in c.lower() and not any(k in c.lower() for k in ["data", "numero"])]
+    if candidates:
+        COL_VALOR = candidates[0]
+        break
+
+COL_SOLICITANTE = next((c for c in df.columns if "solicitante" in c.lower()), None)
+COL_FORNECEDOR = next((c for c in df.columns if "fornecedor" in c.lower()), None)
+COL_DESTINO = next((c for c in df.columns if "destino" in c.lower()), None)
+COL_CCUSTO = next((c for c in df.columns if "centro" in c.lower() and "custo" in c.lower()), None)
+COL_PEDIDO = next((c for c in df.columns if "pedido" in c.lower() and "root" not in c.lower()), None)
+COL_DATA = next((c for c in df.columns if "data" in c.lower() and "pedido" in c.lower()), None)
+if not COL_DATA:
+    COL_DATA = next((c for c in df.columns if "data" in c.lower() and "emiss" in c.lower()), None)
+if not COL_DATA:
+    COL_DATA = next((c for c in df.columns if "data" in c.lower() and "cria" in c.lower()), None)
 
 if COL_CATEGORIA:
     df["Ícone"] = df[COL_CATEGORIA].map(cat_map).fillna("📌")
