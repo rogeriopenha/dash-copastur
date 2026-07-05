@@ -5,37 +5,125 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import io
+import hashlib
+import json
+import os
+from PIL import Image
 
 st.set_page_config(page_title="Dashboard - COPASTUR", page_icon="📊", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
 <style>
+    * { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; }
     .main > div { padding: 1rem 2rem; }
-    .stApp { background-color: #f8f9fa; }
-    .kpi-card { background: white; border-radius: 12px; padding: 1.2rem 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 4px solid #1a5276; margin-bottom: 0.5rem; }
-    .kpi-card .label { font-size: 0.75rem; color: #6c757d; text-transform: uppercase; letter-spacing: 0.5px; }
-    .kpi-card .value { font-size: 1.6rem; font-weight: 700; color: #1a5276; margin-top: 0.2rem; }
-    .kpi-card .sub { font-size: 0.8rem; color: #6c757d; margin-top: 0.1rem; }
-    .card { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 1rem; }
-    h1, h2, h3 { color: #1a5276; }
-    .stButton > button { background: #1a5276; color: white; border: none; border-radius: 8px; padding: 0.4rem 1.5rem; font-weight: 500; }
-    .stButton > button:hover { background: #154360; }
-    div[data-testid="stDataFrame"] { border-radius: 8px; overflow: hidden; }
-    .stTabs [data-baseweb="tab-list"] { gap: 0.5rem; }
-    .stTabs [data-baseweb="tab"] { border-radius: 8px 8px 0 0; padding: 0.5rem 1.2rem; font-weight: 500; }
+    .stApp { background: #0f1629; }
+    .kpi-card { background: #1a2340; border-radius: 14px; padding: 1.2rem 1.5rem; box-shadow: 0 4px 16px rgba(0,0,0,0.3); border-left: 4px solid #7c9ccf; margin-bottom: 0.5rem; transition: transform 0.15s ease; }
+    .kpi-card:hover { transform: translateY(-1px); }
+    .kpi-card .label { font-size: 0.72rem; color: #8899b8; text-transform: uppercase; letter-spacing: 0.6px; font-weight: 600; }
+    .kpi-card .value { font-size: 1.6rem; font-weight: 700; color: #e8edf5; margin-top: 0.15rem; }
+    .kpi-card .sub { font-size: 0.78rem; color: #8899b8; margin-top: 0.1rem; }
+    .card { background: #1a2340; border-radius: 14px; padding: 1.5rem; box-shadow: 0 4px 16px rgba(0,0,0,0.3); margin-bottom: 1rem; }
+    .stSubheader, .card h1, .card h2, .card h3, .card h4, .card h5, .card h6,
+    [data-testid="stHeadingWithAction"],
+    [data-testid="stHeadingWithAction"] *,
+    .stApp h3 { color: #ffffff !important; }
+    h1, h2, h3, h4, h5, h6 { color: #e8edf5; font-weight: 600; }
+    p, .stMarkdown, .caption, .stCaption { color: #c5ccd9; }
+    .stButton > button, .stDownloadButton > button { background: linear-gradient(180deg, #2b5090 0%, #1e3a6e 100%); color: white; border: none; border-radius: 8px; padding: 0.4rem 1.5rem; font-weight: 500; box-shadow: 0 3px 0 #152a4e, 0 4px 12px rgba(37,62,129,0.3); transition: all 0.1s ease; position: relative; top: 0; }
+    .stButton > button:hover, .stDownloadButton > button:hover { background: linear-gradient(180deg, #3663a8 0%, #2b5090 100%); box-shadow: 0 2px 0 #152a4e, 0 6px 16px rgba(37,62,129,0.4); transform: translateY(-1px); }
+    .stButton > button:active, .stDownloadButton > button:active { box-shadow: 0 1px 0 #152a4e; transform: translateY(2px); }
+    div[data-testid="stDataFrame"] { border-radius: 10px; overflow: hidden; border: 1px solid #253052; }
+    .stTabs [data-baseweb="tab-list"] { gap: 0.4rem; background: #1a2340; padding: 0.5rem 0.8rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); margin-bottom: 1rem; }
+    .stTabs button[data-baseweb="tab"] { border-radius: 8px; padding: 0.45rem 1.1rem; font-weight: 500; font-size: 0.85rem; color: #8899b8; border: none; transition: all 0.15s ease; }
+    .stTabs button[data-baseweb="tab"]:hover { color: #e8edf5; background: #253052; }
+    .stTabs button[data-baseweb="tab"][aria-selected="true"] { background: #253e81 !important; color: white !important; }
     footer { display: none; }
+    section[data-testid="stSidebar"] { background: #0f1629; border-right: 1px solid #1a2340; }
+    .stSidebar .stMarkdown, .stSidebar .stMarkdown p, .stSidebar .stMarkdown h2, .stSidebar .stMarkdown h3 { color: #e8edf5; }
+    .stSidebar .stSelectbox label, .stSidebar .stMultiSelect label, .stSidebar .stTextInput label, .stSidebar .stDateInput label { font-weight: 500; font-size: 0.78rem; color: #8899b8; }
+    .stDownloadButton > button { padding: 0.3rem 1.2rem; }
+    .row-widget.stSelectbox div[data-baseweb="select"] > div, .stTextInput input, .stMultiSelect div[data-baseweb="select"] > div { background: #1a2340; border-color: #253052; color: #e8edf5; }
+    section[data-testid="stSidebar"] [data-baseweb="select"] > div,
+    section[data-testid="stSidebar"] .stTextInput input,
+    section[data-testid="stSidebar"] .stMultiSelect [data-baseweb="select"] > div { background: #d9e4f4 !important; border-color: #b8c9dd !important; }
+    section[data-testid="stSidebar"] [data-baseweb="select"] * { color: #000000 !important; }
+    section[data-testid="stSidebar"] .stTextInput input { color: #000000 !important; }
+    section[data-testid="stSidebar"] .stDateInput input { background: #d9e4f4 !important; border-color: #b8c9dd !important; color: #000000 !important; }
+    .st-cx { color: #e8edf5; }
+    .stDateInput input { background: #1a2340; border-color: #253052; color: #e8edf5; }
+    div[data-baseweb="menu"] { background: #ffffff; border: 1px solid #a0b8cc; }
+    li[role="option"] { color: #1a1a2e; }
+    li[role="option"]:hover, li[role="option"][aria-selected="true"] { background: #253e81; color: #ffffff; }
+    .stAlert { background: #1a2340; color: #e8edf5; border-color: #253052; }
+    .login-container { max-width: 380px; margin: 0 auto; padding: 2rem 0; }
+    .login-container .stImage { text-align: center; }
+    .change-pw-container { max-width: 400px; margin: 2rem auto; }
 </style>
 """, unsafe_allow_html=True)
 
 logo_path = "Fujicom/logo_fujicom.jpg"
+
+# ─── LOGIN SYSTEM ───
+_USER_DB = "users_data.json"
+
+def _hash(pw):
+    return hashlib.sha256(pw.encode()).hexdigest()
+
+def _load_users():
+    if os.path.exists(_USER_DB):
+        with open(_USER_DB) as f:
+            return json.load(f)
+    return {
+        "glecya.frota@fujicom.com.br": {"pw": _hash("fujicom2026"), "chg": True, "nm": "Glecya Frota"},
+        "luis.claudio@fujicom.com.br": {"pw": _hash("fujicom2026"), "chg": True, "nm": "Luis Claudio"},
+        "larissa.fujita@fujicom.com.br": {"pw": _hash("fujicom2026"), "chg": True, "nm": "Larissa Fujita"},
+        "rogeriopenha@gmail.com":      {"pw": _hash("fujicom2026"), "chg": True, "nm": "Rogerio Penha"},
+    }
+
+def _save_users(u):
+    with open(_USER_DB, "w") as f:
+        json.dump(u, f, indent=2)
+
+if "user" not in st.session_state:
+    st.session_state.user = None
+
+_users = _load_users()
+
+# ─── LOGIN SCREEN ───
+if not st.session_state.user:
+    st.markdown('<div class="login-container">', unsafe_allow_html=True)
+    try:
+        logo_login = Image.open(logo_path)
+        logo_login = logo_login.resize((220, int(logo_login.height * 220 / logo_login.width)))
+        st.image(logo_login)
+    except:
+        st.markdown("<h1 style='color:#e8edf5;'>Dashboard COPASTUR</h1>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color:#e8edf5; margin-bottom:1.5rem;'>Acessar o sistema</h3>", unsafe_allow_html=True)
+    with st.form("login_form"):
+        email = st.text_input("Email", placeholder="seu@email.com.br")
+        pw = st.text_input("Senha", placeholder="Digite sua senha", type="password")
+        if st.form_submit_button("Entrar", type="primary", use_container_width=True):
+            if email in _users and _users[email]["pw"] == _hash(pw):
+                st.session_state.user = email
+                st.rerun()
+            else:
+                st.error("Email ou senha inválidos")
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.stop()
+
+# ─── SIDEBAR ───
 try:
-    from PIL import Image
     logo = Image.open(logo_path)
     logo = logo.resize((180, int(logo.height * 180 / logo.width)))
     st.sidebar.image(logo, use_container_width=False)
 except:
     pass
 st.sidebar.markdown("<h2 style='color:#1a5276; margin-bottom:0;'>Dashboard - COPASTUR</h2><p style='color:#6c757d; font-size:0.85rem; margin-top:0;'>Fujicom - Pedidos</p>", unsafe_allow_html=True)
+_email = st.session_state.user
+st.sidebar.markdown(f"👤 {_users[_email]['nm']} — <span style='font-size:0.75rem;color:#6c757d;'>{_email}</span>", unsafe_allow_html=True)
+if st.sidebar.button("🚪 Sair", type="primary"):
+    st.session_state.user = None
+    st.rerun()
 st.sidebar.markdown("---")
 
 GCP_JSON_SECRET = st.secrets.get("gcp_service_account") or st.secrets.get("gcp_service_account_json")
@@ -47,13 +135,36 @@ if CLOUD_MODE:
 else:
     st.sidebar.info("💻 Modo local")
 
-USE_SAMPLE_DATA = st.sidebar.checkbox("Usar dados de exemplo", value=not CLOUD_MODE)
-
-if not USE_SAMPLE_DATA and not CLOUD_MODE:
+if not CLOUD_MODE:
     st.sidebar.markdown("### 🔑 Conexão Google Sheets")
     json_key = st.sidebar.file_uploader("Service Account JSON", type="json")
     sheet_url = st.sidebar.text_input("URL da Planilha", placeholder="https://docs.google.com/spreadsheets/d/...")
     conectar = st.sidebar.button("Conectar", type="primary")
+
+# ─── PASSWORD CHANGE ───
+if _users[st.session_state.user]["chg"]:
+    st.markdown('<div class="login-container change-pw-container">', unsafe_allow_html=True)
+    nm = _users[st.session_state.user]["nm"]
+    st.markdown(f"<h3 style='color:#e8edf5;'>Bem-vindo, {nm}!</h3>", unsafe_allow_html=True)
+    st.markdown("<p style='color:#c5ccd9;'>Por favor, defina uma nova senha.</p>", unsafe_allow_html=True)
+    with st.form("change_pw_form"):
+        npw = st.text_input("Nova senha", type="password", placeholder="Mínimo 6 caracteres")
+        cpw = st.text_input("Confirmar nova senha", type="password")
+        if st.form_submit_button("Salvar", type="primary", use_container_width=True):
+            if not npw:
+                st.error("Digite uma nova senha")
+            elif npw != cpw:
+                st.error("As senhas não conferem")
+            elif len(npw) < 6:
+                st.error("A senha deve ter no mínimo 6 caracteres")
+            else:
+                _users[st.session_state.user]["pw"] = _hash(npw)
+                _users[st.session_state.user]["chg"] = False
+                _save_users(_users)
+                st.success("Senha alterada com sucesso!")
+                st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.stop()
 
 def parse_br(v):
     if pd.isna(v) or v == "" or v is None:
@@ -76,26 +187,38 @@ STATUS_TRANSLATE = {
     "pending": "Pendente", "concluded": "Concluído",
 }
 
-def load_gsheets_tab(creds_dict, sheet_url, tab_name):
+def gsheet_connect(creds_dict, sheet_url):
     import gspread, json
     from oauth2client.service_account import ServiceAccountCredentials
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    if isinstance(creds_dict, bytes):
+        creds_dict = creds_dict.decode("utf-8")
     if isinstance(creds_dict, str):
         creds_dict = json.loads(creds_dict)
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     client = gspread.authorize(creds)
-    sheet = client.open_by_url(sheet_url)
+    return client.open_by_url(sheet_url)
+
+def df_from_ws(ws):
+    """Load worksheet using get_all_values() (strings) to avoid gspread corrupting Brazilian-formatted numbers."""
+    raw = ws.get_all_values()
+    return pd.DataFrame(raw[1:], columns=raw[0])
+
+def load_gsheets_tab(creds_dict, sheet_url, tab_name):
+    sheet = gsheet_connect(creds_dict, sheet_url)
     ws = sheet.worksheet(tab_name)
-    return pd.DataFrame(ws.get_all_records())
+    return df_from_ws(ws)
 
 def compute_subtotais(df_pedidos, creds_dict, sheet_url):
+    sheet = gsheet_connect(creds_dict, sheet_url)
     ped_id = next(c for c in df_pedidos.columns if "pedido" in c.lower() and "root" not in c.lower())
     ped_vals = df_pedidos[ped_id].astype(str)
     total_calc = pd.Series(0.0, index=df_pedidos.index)
 
-    for tab in ["Aereos", "Hoteis", "Carros", "Servicos"]:
+    for tab in ["Aereos", "Hoteis", "Carros", "Servicos", "Transporte", "Reembolsos"]:
         try:
-            df_tab = load_gsheets_tab(creds_dict, sheet_url, tab)
+            ws = sheet.worksheet(tab)
+            df_tab = df_from_ws(ws)
             if df_tab.empty:
                 continue
             t_ped = next(c for c in df_tab.columns if "pedido" in c.lower())
@@ -103,10 +226,8 @@ def compute_subtotais(df_pedidos, creds_dict, sheet_url):
             if t_val is None:
                 continue
             df_tab[t_val] = df_tab[t_val].apply(parse_br)
-            # Build lookup: for each pedido in this tab, sum its values
             df_tab[t_ped] = df_tab[t_ped].astype(str)
             lookup = df_tab.groupby(t_ped)[t_val].sum()
-            # Map into pedidos
             mapped = ped_vals.map(lookup).fillna(0.0)
             total_calc = total_calc + mapped
         except Exception:
@@ -116,74 +237,22 @@ def compute_subtotais(df_pedidos, creds_dict, sheet_url):
     return total_calc
 
 @st.cache_data(ttl=300)
-def load_sample_data():
-    np.random.seed(42)
-    n = 200
-    pedidos = []
-    status_opts = ["Aprovado", "Concluído", "Pendente", "Cancelado"]
-    centros_custo = ["Comercial", "TI", "RH", "Financeiro", "Operações", "Diretoria"]
-    colaboradores = ["Carlos Silva", "Ana Oliveira", "Bruno Santos", "Daniela Costa",
-        "Eduardo Lima", "Fernanda Souza", "Gabriel Rocha", "Helena Martins",
-        "Igor Pereira", "Julia Almeida"]
-    fornecedores = ["Copastur", "Latam", "Azul", "Gol", "Localiza", "Booking", "Uber", "Decolar", "Airbnb", "Rappi"]
-    categorias = ["Passagem Aérea", "Hotel", "Aluguel Carro", "Alimentação", "Uber/Táxi", "Pedágio", "Estacionamento", "Outros"]
-    for i in range(n):
-        data_emissao = datetime(2025, 1, 1) + timedelta(days=np.random.randint(0, 545), hours=np.random.randint(0, 23))
-        data_viagem = data_emissao + timedelta(days=np.random.randint(1, 30))
-        status = np.random.choice(status_opts, p=[0.4, 0.3, 0.2, 0.1])
-        valor = round(np.random.gamma(2, 500) + 100, 2)
-        if status == "Cancelado": valor = 0
-        pedidos.append({
-            "Nº Pedido": f"OS-{25000 + i}", "Data Emissão": data_emissao, "Data Viagem": data_viagem,
-            "Solicitante": np.random.choice(colaboradores), "Centro Custo": np.random.choice(centros_custo),
-            "Departamento": np.random.choice(["Vendas", "Admin", "Operacional"]), "Status": status,
-            "Valor Total": valor, "Categoria": np.random.choice(categorias),
-            "Fornecedor": np.random.choice(fornecedores),
-            "Destino": np.random.choice(["São Paulo", "Rio de Janeiro", "Belo Horizonte", "Brasília", "Salvador", "Recife", "Fortaleza", "Curitiba", "Porto Alegre", "Manaus"]),
-            "Motivo Viagem": np.random.choice(["Reunião Cliente", "Treinamento", "Conferência", "Vistoria Técnica", "Visita Comercial", "Auditoria"]),
-            "Qtd Diárias": np.random.randint(1, 10), "Qtd Passageiros": np.random.randint(1, 4),
-        })
-    df = pd.DataFrame(pedidos)
-    df["Mês"] = df["Data Emissão"].dt.month_name()
-    return df
-
-@st.cache_data(ttl=300)
 def load_pedidos_gsheets(json_key_file, sheet_url):
-    import gspread, json
-    from oauth2client.service_account import ServiceAccountCredentials
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    if isinstance(json_key_file, (bytes, str)):
-        creds_dict = json.loads(json_key_file)
-    else:
-        creds_dict = json_key_file
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-    client = gspread.authorize(creds)
-    sheet = client.open_by_url(sheet_url)
+    sheet = gsheet_connect(json_key_file, sheet_url)
     ws = sheet.worksheet("Pedidos")
-    dados = ws.get_all_records()
-    return pd.DataFrame(dados)
+    return df_from_ws(ws)
 
 @st.cache_data(ttl=300)
 def load_reembolsos_gsheets(json_key_file, sheet_url):
-    import gspread, json
-    from oauth2client.service_account import ServiceAccountCredentials
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    if isinstance(json_key_file, (bytes, str)):
-        creds_dict = json.loads(json_key_file)
-    else:
-        creds_dict = json_key_file
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-    client = gspread.authorize(creds)
-    sheet = client.open_by_url(sheet_url)
+    sheet = gsheet_connect(json_key_file, sheet_url)
     ws = sheet.worksheet("Reembolsos")
-    dados = ws.get_all_records()
-    return pd.DataFrame(dados)
+    return df_from_ws(ws)
 
-if USE_SAMPLE_DATA:
-    df_pedidos = load_sample_data()
-    df_reemb = None
-    st.sidebar.success("✅ Dados de exemplo")
-elif CLOUD_MODE:
+@st.cache_data(ttl=300)
+def load_subtab(tab_name, creds_json, sheet_url):
+    return load_gsheets_tab(creds_json, sheet_url, tab_name)
+
+if CLOUD_MODE:
     with st.spinner("Carregando dados..."):
         try:
             import json
@@ -193,11 +262,12 @@ elif CLOUD_MODE:
             # Compute real totals from sub-tabs (Aereos, Hoteis, Carros, Servicos)
             with st.spinner("Calculando totais reais..."):
                 df_pedidos["total_calculado"] = compute_subtotais(df_pedidos, js, SHEET_URL_SECRET)
+            st.session_state._creds = js
+            st.session_state._sheet_url = SHEET_URL_SECRET
             st.sidebar.success(f"✅ {len(df_pedidos)} pedidos")
         except Exception as e:
-            st.sidebar.error(f"Erro: {e}")
-            df_pedidos = load_sample_data()
-            df_reemb = None
+            st.sidebar.error(f"Erro ao carregar dados: {e}")
+            st.stop()
 else:
     if "df_loaded" in st.session_state and st.session_state.df_loaded is not None:
         df_pedidos = st.session_state.df_loaded
@@ -211,13 +281,14 @@ else:
                 df_pedidos["total_calculado"] = compute_subtotais(df_pedidos, jk, sheet_url)
                 st.session_state.df_loaded = df_pedidos
                 st.session_state.df_reemb = df_reemb
+                st.session_state._creds = jk
+                st.session_state._sheet_url = sheet_url
                 st.sidebar.success(f"✅ {len(df_pedidos)} registros")
             except Exception as e:
                 st.sidebar.error(f"Erro: {e}")
-                df_pedidos = load_sample_data()
-                df_reemb = None
+                st.stop()
     else:
-        st.info("👈 Conecte-se ao Google Sheets ou marque 'Dados de exemplo'")
+        st.info("👈 Conecte-se ao Google Sheets para carregar os dados")
         st.stop()
 
 # ── COLUMN MAPPING ──
@@ -242,20 +313,9 @@ if not COLS["DATA"]: COLS["DATA"] = next((c for c in df_pedidos.columns if "data
 if not COLS["DATA"]: COLS["DATA"] = next((c for c in df_pedidos.columns if "data" in c.lower() and "cria" in c.lower()), None)
 COLS["TIPO"] = next((c for c in df_pedidos.columns if "tipo" in c.lower()), None)
 
-# ── PARSE ──
-if COLS["VALOR"]:
-    df_pedidos[COLS["VALOR"]] = df_pedidos[COLS["VALOR"]].apply(parse_br)
-
-# Cap outliers in VALOR (Brazilian-formatted strings that became billions)
-if COLS["VALOR"]:
-    outliers = (df_pedidos[COLS["VALOR"]] > MAX_VALOR).sum()
-    df_pedidos[COLS["VALOR"]] = df_pedidos[COLS["VALOR"]].clip(upper=MAX_VALOR)
-
-# If total_calculado exists (from sub-tabs), use it as primary value
+# Use sum of all sub-tabs + Reembolsos as the order value (ignore Total column)
 if "total_calculado" in df_pedidos.columns:
-    val_col = COLS["VALOR"]
-    # Use subtotal when available (> 0), otherwise fall back to capped VALOR
-    df_pedidos[val_col] = df_pedidos["total_calculado"].combine_first(df_pedidos[val_col])
+    df_pedidos[COLS["VALOR"]] = df_pedidos["total_calculado"]
     df_pedidos = df_pedidos.drop(columns=["total_calculado"])
 
 if COLS["STATUS"]:
@@ -268,11 +328,19 @@ for col in list(COLS.values()):
 # ── REEMBOLSOS PARSE ──
 if df_reemb is not None and not df_reemb.empty:
     REEMB_CAT = next((c for c in df_reemb.columns if "categoria" in c.lower()), None)
-    REEMB_VAL = next((c for c in df_reemb.columns if c.lower() in ["valor total", "total", "valor"]), None)
-    REEMB_DESP = next((c for c in df_reemb.columns if "despesa" in c.lower()), None)
+    # Prioridade: "Valor Total" > "Total" > "Valor" (coluna "Valor" tem quantidade, nao valor monetario)
+    REEMB_VAL = next((c for c in df_reemb.columns if c.lower() == "valor total"), None)
+    if not REEMB_VAL: REEMB_VAL = next((c for c in df_reemb.columns if c.lower() == "total"), None)
+    if not REEMB_VAL: REEMB_VAL = next((c for c in df_reemb.columns if c.lower() == "valor"), None)
+    REEMB_DESP = next((c for c in df_reemb.columns if "descricao" in c.lower() or "descri" in c.lower()), None)
     REEMB_PED = next((c for c in df_reemb.columns if "pedido" in c.lower()), None)
     if REEMB_VAL: df_reemb[REEMB_VAL] = df_reemb[REEMB_VAL].apply(parse_br)
     if REEMB_PED: df_reemb[REEMB_PED] = df_reemb[REEMB_PED].astype(str)
+
+# ── SOLICITANTE LOOKUP ──
+SOLICITANTE_MAP = {}
+if COLS["PEDIDO"] and COLS["SOLICITANTE"]:
+    SOLICITANTE_MAP = dict(zip(df_pedidos[COLS["PEDIDO"]].astype(str).str.strip(), df_pedidos[COLS["SOLICITANTE"]]))
 
 # ── SIDEBAR FILTERS ──
 st.sidebar.markdown("---")
@@ -285,24 +353,37 @@ data_col = COLS["DATA"]
 data_ok = data_col and pd.api.types.is_datetime64_any_dtype(df_filt[data_col])
 if data_ok:
     min_d, max_d = df_filt[data_col].min().date(), df_filt[data_col].max().date()
-    dr = st.sidebar.date_input("Período", value=(min_d, max_d), min_value=min_d, max_value=max_d)
-    if len(dr) == 2:
-        df_filt = df_filt[(df_filt[data_col].dt.date >= dr[0]) & (df_filt[data_col].dt.date <= dr[1])]
-        filtros_aplicados += 1
+    st.sidebar.markdown("### 📅 Período")
+    dc1, dc2 = st.sidebar.columns(2)
+    with dc1:
+        start_date = st.date_input("De", value=min_d, min_value=min_d, max_value=max_d, format="DD/MM/YYYY")
+    with dc2:
+        end_date = st.date_input("Até", value=max_d, min_value=min_d, max_value=max_d, format="DD/MM/YYYY")
+    df_filt = df_filt[(df_filt[data_col].dt.date >= start_date) & (df_filt[data_col].dt.date <= end_date)]
+    filtros_aplicados += 1
 
 # ── SINGLE ORDER FILTER ──
 st.sidebar.markdown("### 🔎 Pedido Específico")
-busca_pedido = st.sidebar.text_input("Nº do Pedido", placeholder="Ex: 1935")
+busca_pedido = st.sidebar.text_input("Nº do Pedido", placeholder="Ex: 1935", key="busca_pedido")
 if busca_pedido:
     if COLS["PEDIDO"]:
-        df_filt[COLS["PEDIDO"]] = df_filt[COLS["PEDIDO"]].astype(str)
-        mask = df_filt[COLS["PEDIDO"]].str.contains(busca_pedido.strip(), case=False, na=False)
-        if mask.any():
-            df_filt = df_filt[mask]
+        ped_str = df_filt[COLS["PEDIDO"]].astype(str).str.strip()
+        busca = busca_pedido.strip()
+        # Tenta match exato primeiro, depois contains
+        mask_exato = ped_str == busca
+        if mask_exato.any():
+            df_filt = df_filt[mask_exato]
             filtros_aplicados += 1
-            st.sidebar.success(f"Pedido {busca_pedido} encontrado")
+            st.sidebar.success(f"Pedido {busca} encontrado")
         else:
-            st.sidebar.warning("Pedido não encontrado")
+            mask_contem = ped_str.str.contains(busca, case=False, na=False)
+            if mask_contem.any():
+                df_filt = df_filt[mask_contem]
+                filtros_aplicados += 1
+                st.sidebar.success(f"Pedido {busca} encontrado")
+            else:
+                st.sidebar.warning(f"Pedido {busca} não encontrado")
+                st.sidebar.caption(f"Exemplo: {ped_str.iloc[0] if len(ped_str) > 0 else 'sem dados'}")
 
 if COLS["STATUS"]:
     opts = sorted(df_pedidos[COLS["STATUS"]].dropna().unique())
@@ -379,7 +460,7 @@ if COLS["STATUS"]: tab_labels.append("📊 Por Status")
 if COLS["SOLICITANTE"]: tab_labels.append("👥 Por Solicitante")
 if data_ok: tab_labels.append("📅 Tendência")
 tab_labels.append("📋 Dados Exportáveis")
-tab_labels.append("💰 Reembolsos")
+tab_labels.append("📋 Detalhamento")
 
 tabs = st.tabs(tab_labels)
 ti = 0
@@ -396,7 +477,8 @@ with tabs[ti]:
                 marker=dict(color=g.values, colorscale="Blues", line=dict(width=0)),
                 text=g.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
             fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10),
-                plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
+                paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
+            fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
             st.plotly_chart(fig, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
     with c2:
@@ -407,7 +489,7 @@ with tabs[ti]:
             fig = go.Figure(data=[go.Pie(labels=ec.index, values=ec.values, hole=0.55,
                 marker=dict(colors=px.colors.sequential.Blues[::-1][:len(ec)]),
                 textinfo="label+percent", textposition="outside", showlegend=False)])
-            fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10))
+            fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"))
             st.plotly_chart(fig, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
     c1, c2 = st.columns([1, 1])
@@ -417,8 +499,9 @@ with tabs[ti]:
         if COLS["AGENCIA"] and COLS["VALOR"]:
             g = df_filt.groupby(COLS["AGENCIA"])[COLS["VALOR"]].sum().sort_values(ascending=False).head(10)
             fig = px.bar(g, x=g.values, y=g.index, orientation="h", color=g.values, color_continuous_scale="Blues")
-            fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
+            fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
             fig.update_coloraxes(showscale=False)
+            fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
             st.plotly_chart(fig, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
     with c2:
@@ -427,8 +510,9 @@ with tabs[ti]:
         if COLS["MOTIVO"]:
             mc = df_filt[COLS["MOTIVO"]].value_counts().head(10)
             fig = px.bar(mc, x=mc.values, y=mc.index, orientation="h", color=mc.values, color_continuous_scale="Teal")
-            fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
+            fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
             fig.update_coloraxes(showscale=False)
+            fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
             st.plotly_chart(fig, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
     ti += 1
@@ -443,7 +527,7 @@ if COLS["STATUS"]:
             fig = go.Figure(data=[go.Pie(labels=sc.index, values=sc.values, hole=0.5,
                 marker=dict(colors=px.colors.sequential.Blues[::-1][:len(sc)]),
                 textinfo="label+percent", textposition="outside", showlegend=False)])
-            fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10))
+            fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"))
             st.plotly_chart(fig, use_container_width=True)
         with c2:
             if COLS["VALOR"]:
@@ -468,7 +552,8 @@ if COLS["SOLICITANTE"]:
                 fig = go.Figure(go.Bar(x=g.values, y=g.index, orientation="h",
                     marker=dict(color=g.values, colorscale="Blues", line=dict(width=0)),
                     text=g.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
-                fig.update_layout(height=500, margin=dict(l=10, r=10, t=10, b=10), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
+                fig.update_layout(height=500, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
+                fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
                 st.plotly_chart(fig, use_container_width=True)
             st.markdown("</div>", unsafe_allow_html=True)
         with c2:
@@ -478,7 +563,8 @@ if COLS["SOLICITANTE"]:
             fig = go.Figure(go.Bar(x=sc.values, y=sc.index, orientation="h",
                 marker=dict(color=sc.values, colorscale="Teal", line=dict(width=0)),
                 text=sc.values, textposition="outside"))
-            fig.update_layout(height=500, margin=dict(l=10, r=10, t=10, b=10), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
+            fig.update_layout(height=500, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
+            fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
             st.plotly_chart(fig, use_container_width=True)
             st.markdown("</div>", unsafe_allow_html=True)
         ti += 1
@@ -494,8 +580,9 @@ if data_ok:
                 tr = df_filt.set_index(data_col).resample("ME")[COLS["VALOR"]].sum().reset_index()
                 fig = px.line(tr, x=data_col, y=COLS["VALOR"], markers=True)
                 fig.update_traces(line=dict(color="#1a5276", width=3), marker=dict(size=6))
-                fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10), plot_bgcolor="white", xaxis=dict(title=None), yaxis=dict(title="R$"))
+                fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(title=None), yaxis=dict(title="R$"))
                 fig.update_yaxes(tickprefix="R$ ")
+                fig.update_traces(hovertemplate="R$ %{y:,.2f}<extra></extra>")
                 st.plotly_chart(fig, use_container_width=True)
             st.markdown("</div>", unsafe_allow_html=True)
         with c2:
@@ -503,108 +590,213 @@ if data_ok:
             st.subheader("Volume de Pedidos por Mês")
             ct = df_filt.set_index(data_col).resample("ME")[COLS["PEDIDO"] or df_filt.columns[0]].count().reset_index()
             fig = px.bar(ct, x=data_col, y=COLS["PEDIDO"] or df_filt.columns[0], color_discrete_sequence=["#2e86c1"])
-            fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10), plot_bgcolor="white", xaxis=dict(title=None), yaxis=dict(title="Pedidos"))
+            fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(title=None), yaxis=dict(title="Pedidos"))
+            fig.update_traces(hovertemplate="%{y}<extra></extra>")
             st.plotly_chart(fig, use_container_width=True)
             st.markdown("</div>", unsafe_allow_html=True)
         ti += 1
 
-# TAB 5: Tabela Exportável
+# TAB 5: Tabela Exportável (com sub-abas por função)
 with tabs[ti]:
     st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.subheader("📋 Dados Filtrados")
-    st.caption(f"{len(df_filt)} registros • {len(df_filt.columns)} colunas")
-    export_cols = [c for c in df_filt.columns]
-    search = st.text_input("🔎 Buscar na tabela", placeholder="Digite para filtrar...")
-    col_sel = st.multiselect("Colunas", options=export_cols, default=export_cols, label_visibility="collapsed")
-    df_disp = df_filt[col_sel].copy() if col_sel else df_filt[export_cols].copy()
-    if search:
-        mask = df_disp.astype(str).apply(lambda row: row.str.contains(search, case=False, na=False)).any(axis=1)
-        df_disp = df_disp[mask]
-    for c in df_disp.select_dtypes(include=["datetime64"]).columns:
-        df_disp[c] = df_disp[c].dt.strftime("%d/%m/%Y")
-    st.dataframe(df_disp, use_container_width=True, hide_index=True, height=450)
-    st.markdown("<br>", unsafe_allow_html=True)
-    d1, d2, d3 = st.columns(3)
-    csv = df_disp.to_csv(index=False).encode("utf-8-sig")
-    d1.download_button("📥 CSV", csv, f"pedidos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv", "text/csv", use_container_width=True)
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine="openpyxl") as w: df_disp.to_excel(w, index=False, sheet_name="Pedidos")
-    d2.download_button("📥 Excel", output.getvalue(), f"pedidos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
-    d3.download_button("📥 JSON", df_disp.to_json(orient="records", force_ascii=False, indent=2).encode("utf-8-sig"), f"pedidos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json", "application/json", use_container_width=True)
+    st.subheader("📋 Dados Exportáveis")
+    _ed_creds = st.session_state.get("_creds")
+    _ed_url = st.session_state.get("_sheet_url")
+    if not _ed_creds and CLOUD_MODE:
+        import json
+        _ed_creds = json.dumps(GCP_JSON_SECRET) if not isinstance(GCP_JSON_SECRET, str) else GCP_JSON_SECRET
+        _ed_url = SHEET_URL_SECRET
+
+    ed_labels = ["📋 Todas", "✈️ Aéreos", "🏨 Hotéis", "🚗 Carros", "🚚 Transporte", "💰 Adiantamentos", "🛠️ Serviços", "💰 Reembolsos"]
+    ed_keys = ["Pedidos", "Aereos", "Hoteis", "Carros", "Transporte", "Adiantamentos", "Servicos", "Reembolsos"]
+    ed_tabs = st.tabs(ed_labels)
+    for ei, ek in enumerate(ed_keys):
+        with ed_tabs[ei]:
+            if ek == "Pedidos":
+                st.caption(f"{len(df_filt)} registros • {len(df_filt.columns)} colunas")
+                export_cols = [c for c in df_filt.columns]
+                search = st.text_input("🔎 Buscar na tabela", placeholder="Digite para filtrar...", key="ed_search_pedidos")
+                col_sel = st.multiselect("Colunas", options=export_cols, default=export_cols, label_visibility="collapsed", key="ed_cols_pedidos")
+                df_disp = df_filt[col_sel].copy() if col_sel else df_filt[export_cols].copy()
+                if search:
+                    mask = df_disp.astype(str).apply(lambda row: row.str.contains(search, case=False, na=False)).any(axis=1)
+                    df_disp = df_disp[mask]
+                for c in df_disp.select_dtypes(include=["datetime64"]).columns:
+                    df_disp[c] = df_disp[c].dt.strftime("%d/%m/%Y")
+                st.dataframe(df_disp, use_container_width=True, hide_index=True, height=450)
+                st.markdown("<br>", unsafe_allow_html=True)
+                d1, d2, d3 = st.columns(3)
+                csv = df_disp.to_csv(index=False).encode("utf-8-sig")
+                d1.download_button("📥 CSV", csv, f"pedidos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv", "text/csv", use_container_width=True, key="dl_pedidos_csv")
+                output = io.BytesIO()
+                with pd.ExcelWriter(output, engine="openpyxl") as w: df_disp.to_excel(w, index=False, sheet_name="Pedidos")
+                d2.download_button("📥 Excel", output.getvalue(), f"pedidos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True, key="dl_pedidos_xlsx")
+                d3.download_button("📥 JSON", df_disp.to_json(orient="records", force_ascii=False, indent=2).encode("utf-8-sig"), f"pedidos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json", "application/json", use_container_width=True, key="dl_pedidos_json")
+            else:
+                if not _ed_creds or not _ed_url:
+                    st.info("💻 Conecte-se ao Google Sheets para visualizar os dados desta aba.")
+                else:
+                    try:
+                        df_ed = load_subtab(ek, _ed_creds, _ed_url)
+                    except Exception:
+                        df_ed = None
+                    if df_ed is not None and not df_ed.empty:
+                        st.caption(f"{len(df_ed)} registros • {len(df_ed.columns)} colunas")
+                        search_ed = st.text_input("🔎 Buscar", placeholder="Digite para filtrar...", key=f"ed_search_{ek}")
+                        df_ed_disp = df_ed.copy()
+                        if search_ed:
+                            mask = df_ed_disp.astype(str).apply(lambda row: row.str.contains(search_ed, case=False, na=False)).any(axis=1)
+                            df_ed_disp = df_ed_disp[mask]
+                        for c in df_ed_disp.select_dtypes(include=["datetime64"]).columns:
+                            df_ed_disp[c] = df_ed_disp[c].dt.strftime("%d/%m/%Y")
+                        st.dataframe(df_ed_disp, use_container_width=True, hide_index=True, height=450)
+                        st.download_button("📥 Exportar CSV", df_ed_disp.to_csv(index=False).encode("utf-8-sig"),
+                            f"{ek.lower()}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv", "text/csv", use_container_width=True, key=f"dl_{ek}")
+                    else:
+                        st.info(f"Dados de {ek} não disponíveis.")
     st.markdown("</div>", unsafe_allow_html=True)
     ti += 1
 
-# TAB 6: Reembolsos
+# TAB 6: Detalhamento por Aba (segunda linha de abas)
 with tabs[ti]:
-    if df_reemb is not None and not df_reemb.empty:
-        df_r = df_reemb.copy()
-        if COLS["PEDIDO"] and REEMB_PED:
-            pedidos_filtrados = set(df_filt[COLS["PEDIDO"]].astype(str))
-            df_r = df_r[df_r[REEMB_PED].astype(str).isin(pedidos_filtrados)]
-        elif busca_pedido and REEMB_PED:
-            df_r = df_r[df_r[REEMB_PED].astype(str).str.contains(busca_pedido.strip(), case=False, na=False)]
+    _creds = st.session_state.get("_creds")
+    _sheet_url = st.session_state.get("_sheet_url")
 
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("💰 Despesas Reembolsáveis")
-        st.caption(f"{len(df_r)} despesas • R$ {df_r[REEMB_VAL].sum():,.2f}" if REEMB_VAL else f"{len(df_r)} despesas")
-
-        r1, r2, r3, r4 = st.columns(4)
-        r1.markdown(f"""<div class="kpi-card"><div class="label">💵 Total Reembolsável</div><div class="value">R$ {df_r[REEMB_VAL].sum():,.2f}</div></div>""" if REEMB_VAL else "", unsafe_allow_html=True)
-        r2.markdown(f"""<div class="kpi-card"><div class="label">📝 Total Despesas</div><div class="value">{len(df_r)}</div></div>""", unsafe_allow_html=True)
-
-        if REEMB_CAT and REEMB_VAL:
-            cats = df_r.groupby(REEMB_CAT)[REEMB_VAL].sum().sort_values(ascending=False)
-            r3.markdown(f"""<div class="kpi-card"><div class="label">🍽️ Alimentação</div><div class="value">R$ {cats.get('Alimentação', 0):,.2f}</div></div>""" if "Alimentação" in cats.index else "", unsafe_allow_html=True)
-            uber_val = sum(v for k, v in cats.items() if any(x in k.lower() for x in ["transporte", "uber", "táxi", "taxi"]))
-            r4.markdown(f"""<div class="kpi-card"><div class="label">🚕 Uber/Táxi</div><div class="value">R$ {uber_val:,.2f}</div></div>""", unsafe_allow_html=True)
-
-        st.markdown("</div>", unsafe_allow_html=True)
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-
-        c1, c2 = st.columns([1, 1])
-        with c1:
-            st.subheader("Gastos por Categoria")
-            if REEMB_CAT and REEMB_VAL:
-                cs = df_r.groupby(REEMB_CAT)[REEMB_VAL].sum().sort_values(ascending=True)
-                fig = go.Figure(go.Bar(x=cs.values, y=cs.index, orientation="h",
-                    marker=dict(color=cs.values, colorscale="Blues", line=dict(width=0)),
-                    text=cs.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
-                fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
-                st.plotly_chart(fig, use_container_width=True)
-        with c2:
-            st.subheader("Distribuição por Categoria")
-            cc = df_r[REEMB_CAT].value_counts()
-            fig = go.Figure(data=[go.Pie(labels=cc.index, values=cc.values, hole=0.55,
-                marker=dict(colors=px.colors.sequential.Blues[::-1][:len(cc)]),
-                textinfo="label+percent", textposition="outside", showlegend=False)])
-            fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10))
-            st.plotly_chart(fig, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        if REEMB_DESP:
-            st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.subheader("Top 10 Tipos de Despesa")
-            if REEMB_VAL:
-                ds = df_r.groupby(REEMB_DESP)[REEMB_VAL].sum().sort_values(ascending=False).head(10)
-                fig = go.Figure(go.Bar(x=ds.values, y=ds.index, orientation="h",
-                    marker=dict(color=ds.values, colorscale="Teal", line=dict(width=0)),
-                    text=ds.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
-                fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
-                st.plotly_chart(fig, use_container_width=True)
-            st.markdown("</div>", unsafe_allow_html=True)
-
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("📋 Despesas Detalhadas")
-        cols_r = [c for c in df_r.columns if c not in ["Ativo", "Verificado", "Código Moeda", "Moeda Ref.", "Cotação Ref."]]
-        sr = st.text_input("🔎 Buscar despesa", placeholder="alimentação, uber...", key="reemb_search")
-        df_rd = df_r[cols_r].copy()
-        if sr:
-            df_rd = df_rd[df_rd.astype(str).apply(lambda row: row.str.contains(sr, case=False, na=False)).any(axis=1)]
-        for c in df_rd.select_dtypes(include=["datetime64"]).columns:
-            df_rd[c] = df_rd[c].dt.strftime("%d/%m/%Y")
-        st.dataframe(df_rd, use_container_width=True, hide_index=True, height=400)
-        st.download_button("📥 Exportar Reembolsos CSV", df_rd.to_csv(index=False).encode("utf-8-sig"),
-            f"reembolsos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv", "text/csv", use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
+    if not _creds or not _sheet_url:
+        st.info("💻 Conecte-se ao Google Sheets para visualizar os detalhes das abas.")
     else:
-        st.info("Dados de reembolso não disponíveis (use dados de exemplo ou conecte ao Google Sheets)")
+        subtab_labels = ["✈️ Aéreos", "🏨 Hotéis", "🚗 Carros", "🚚 Transporte", "💰 Adiantamentos", "🛠️ Serviços", "💰 Reembolsos"]
+        subtab_keys = ["Aereos", "Hoteis", "Carros", "Transporte", "Adiantamentos", "Servicos", "Reembolsos"]
+        # Column letters: J=9, K=10, L=11, N=13, Q=16 (0-indexed)
+        SUBTAB_VAL_COL = {"Aereos": 9, "Hoteis": 11, "Carros": 16, "Transporte": 13, "Adiantamentos": 9, "Servicos": 10}
+
+        subtabs_2 = st.tabs(subtab_labels)
+        for si, sk in enumerate(subtab_keys):
+            with subtabs_2[si]:
+                try:
+                    df_st = load_subtab(sk, _creds, _sheet_url)
+                except Exception:
+                    df_st = None
+
+                if df_st is None or df_st.empty:
+                    st.info(f"Dados de {sk} não disponíveis.")
+                else:
+                    if sk == "Reembolsos":
+                        val_col = next((c for c in df_st.columns if c.lower() == "valor total"), None)
+                        if not val_col: val_col = next((c for c in df_st.columns if c.lower() == "total"), None)
+                        if not val_col: val_col = next((c for c in df_st.columns if c.lower() == "valor"), None)
+                    else:
+                        val_idx = SUBTAB_VAL_COL.get(sk)
+                        val_col = df_st.columns[val_idx] if val_idx is not None and val_idx < len(df_st.columns) else None
+
+                    if val_col is None:
+                        st.info(f"Coluna de valor não encontrada em {sk}.")
+                    else:
+                        df_st[val_col] = df_st[val_col].apply(parse_br)
+                    df_st[val_col] = df_st[val_col].clip(upper=MAX_VALOR)
+
+                    total_val = df_st[val_col].sum()
+                    count_records = len(df_st)
+                    avg_val = total_val / count_records if count_records > 0 else 0
+                    nonzero = (df_st[val_col] > 0).sum()
+
+                    st.caption(f"{count_records} registros • R$ {total_val:,.2f} total • {nonzero} com valor")
+
+                    d1, d2, d3, d4 = st.columns(4)
+                    d1.markdown(f"""<div class="kpi-card"><div class="label">💰 Total {sk}</div><div class="value">R$ {total_val:,.2f}</div></div>""", unsafe_allow_html=True)
+                    d2.markdown(f"""<div class="kpi-card"><div class="label">📝 Registros</div><div class="value">{count_records}</div></div>""", unsafe_allow_html=True)
+                    d3.markdown(f"""<div class="kpi-card"><div class="label">🎫 Valor Médio</div><div class="value">R$ {avg_val:,.2f}</div></div>""", unsafe_allow_html=True)
+                    d4.markdown(f"""<div class="kpi-card"><div class="label">✅ Com Valor</div><div class="value">{nonzero}</div></div>""", unsafe_allow_html=True)
+
+                    st.markdown('<div class="card">', unsafe_allow_html=True)
+
+                    grupo_col = next((c for c in df_st.columns if any(k in c.lower() for k in ["categoria", "tipo", "despesa"])), None)
+                    if grupo_col:
+                        c1, c2 = st.columns([1, 1])
+                        with c1:
+                            st.subheader(f"Gastos por {grupo_col}")
+                            gs = df_st.groupby(grupo_col)[val_col].sum().sort_values(ascending=True).tail(15)
+                            fig = go.Figure(go.Bar(x=gs.values, y=gs.index, orientation="h",
+                                marker=dict(color=gs.values, colorscale="Blues", line=dict(width=0)),
+                                text=gs.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
+                            fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10),
+                                paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
+                            fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
+                            st.plotly_chart(fig, use_container_width=True)
+                        with c2:
+                            st.subheader(f"Distribuição por {grupo_col}")
+                            gc = df_st[grupo_col].value_counts()
+                            fig = go.Figure(data=[go.Pie(labels=gc.index, values=gc.values, hole=0.55,
+                                marker=dict(colors=px.colors.sequential.Blues[::-1][:len(gc)]),
+                                textinfo="label+percent", textposition="outside", showlegend=False)])
+                            fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"))
+                            st.plotly_chart(fig, use_container_width=True)
+
+                        desp_col = next((c for c in df_st.columns if "descri" in c.lower()), None)
+                        if desp_col and grupo_col:
+                            st.subheader("Subcategorias")
+                            cat_order = df_st.groupby(grupo_col)[val_col].sum().sort_values(ascending=False).index
+                            sc1, sc2 = st.columns(2)
+                            sc_cols = [sc1, sc2]
+                            for idx, cat in enumerate(cat_order):
+                                mask = df_st[grupo_col] == cat
+                                sub_df = df_st[mask].groupby(desp_col)[val_col].sum().sort_values(ascending=False).head(5)
+                                if sub_df.empty: continue
+                                with sc_cols[idx % 2]:
+                                    st.markdown(f"**{cat}** (R$ {sub_df.sum():,.2f})")
+                                    sub_fig = go.Figure(go.Bar(x=sub_df.values, y=sub_df.index, orientation="h",
+                                        marker=dict(color=sub_df.values, colorscale="Teal", line=dict(width=0)),
+                                        text=sub_df.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
+                                    sub_fig.update_layout(height=200, margin=dict(l=10, r=10, t=5, b=5),
+                                        paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
+                                    sub_fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
+                                    st.plotly_chart(sub_fig, use_container_width=True)
+
+                    st.markdown("</div>", unsafe_allow_html=True)
+
+                    # ── GRAFICOS POR SOLICITANTE ──
+                    ped_col_st = next((c for c in df_st.columns if "pedido" in c.lower()), None)
+                    if ped_col_st and SOLICITANTE_MAP:
+                        df_st["Solicitante"] = df_st[ped_col_st].astype(str).str.strip().map(SOLICITANTE_MAP)
+                        if df_st["Solicitante"].notna().sum() > 0:
+                            st.markdown('<div class="card">', unsafe_allow_html=True)
+                            gc1, gc2 = st.columns([1, 1])
+                            with gc1:
+                                st.subheader("Gastos: Solicitante x Categoria")
+                                if grupo_col:
+                                    gs_st = df_st.groupby(["Solicitante", grupo_col])[val_col].sum().reset_index()
+                                    fig = px.bar(gs_st, x="Solicitante", y=val_col, color=grupo_col,
+                                        color_discrete_sequence=px.colors.qualitative.Bold,
+                                        text_auto=".2s", barmode="group")
+                                    fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=60),
+                                        paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(title=None))
+                                    fig.update_traces(hovertemplate="R$ %{y:,.2f}<extra></extra>")
+                                    st.plotly_chart(fig, use_container_width=True)
+                                else:
+                                    st.caption("Sem coluna de categoria.")
+                            with gc2:
+                                st.subheader("Total por Solicitante")
+                                stotal_st = df_st.groupby("Solicitante")[val_col].sum().sort_values(ascending=True)
+                                fig = go.Figure(go.Bar(x=stotal_st.values, y=stotal_st.index, orientation="h",
+                                    marker=dict(color=stotal_st.values, colorscale="Blues", line=dict(width=0)),
+                                    text=stotal_st.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
+                                fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10),
+                                    paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
+                                fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
+                                st.plotly_chart(fig, use_container_width=True)
+                    st.markdown("</div>", unsafe_allow_html=True)
+
+                    st.markdown('<div class="card">', unsafe_allow_html=True)
+                    st.subheader(f"📋 Registros - {sk}")
+
+                    search_st = st.text_input("🔎 Buscar", placeholder="Digite para filtrar...", key=f"subtab_search_{sk}")
+                    df_st_disp = df_st.copy()
+                    if search_st:
+                        mask = df_st_disp.astype(str).apply(lambda row: row.str.contains(search_st, case=False, na=False)).any(axis=1)
+                        df_st_disp = df_st_disp[mask]
+                    for c in df_st_disp.select_dtypes(include=["datetime64"]).columns:
+                        df_st_disp[c] = df_st_disp[c].dt.strftime("%d/%m/%Y")
+                    st.dataframe(df_st_disp, use_container_width=True, hide_index=True, height=400)
+                    st.download_button("📥 Exportar CSV", df_st_disp.to_csv(index=False).encode("utf-8-sig"),
+                        f"{sk.lower()}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv", "text/csv", use_container_width=True, key=f"dl_subtab_{sk}")
+                    st.markdown("</div>", unsafe_allow_html=True)
