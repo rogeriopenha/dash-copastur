@@ -57,8 +57,11 @@ st.markdown("""
     .stAlert { background: #1a2340; color: #e8edf5; border-color: #253052; }
     .login-container { max-width: 380px; margin: 0 auto; padding: 2rem 0; }
     .login-container .stImage { text-align: center; }
-    .login-container .stTextInput input { padding: 0.35rem 0.6rem; font-size: 0.85rem; }
-    .login-container .st-emotion-cache-1kyxreq { gap: 0.3rem; }
+    .login-container .stTextInput { text-align: center; }
+    .login-container .stTextInput label { display: block; text-align: center; width: 100%; font-size: 0.75rem; }
+    .login-container .stTextInput input { padding: 0.2rem 0.4rem; font-size: 0.75rem; text-align: center; }
+    .login-container .st-emotion-cache-1kyxreq { gap: 0.2rem; }
+    .login-container .stForm { text-align: center; }
     .change-pw-container { max-width: 400px; margin: 2rem auto; }
 </style>
 """, unsafe_allow_html=True)
@@ -101,7 +104,7 @@ if not st.session_state.user:
     except:
         st.markdown("<h1 style='color:#e8edf5;'>Dashboard COPASTUR</h1>", unsafe_allow_html=True)
     st.markdown("<h3 style='color:#e8edf5; margin-bottom:1.5rem;'>Painel - Fujicom / Copastur</h3>", unsafe_allow_html=True)
-    c1, c2, c3 = st.columns([1, 2, 1])
+    c1, c2, c3 = st.columns([1, 1, 1])
     with c2:
         with st.form("login_form"):
             email = st.text_input("Email", placeholder="seu@email.com.br")
