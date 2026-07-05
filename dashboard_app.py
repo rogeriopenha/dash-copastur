@@ -90,23 +90,28 @@ def load_gsheets_tab(creds_dict, sheet_url, tab_name):
 
 def compute_subtotais(df_pedidos, creds_dict, sheet_url):
     ped_id = next(c for c in df_pedidos.columns if "pedido" in c.lower() and "root" not in c.lower())
-    df_pedidos[ped_id] = df_pedidos[ped_id].astype(str)
+    ped_vals = df_pedidos[ped_id].astype(str)
     total_calc = pd.Series(0.0, index=df_pedidos.index)
 
     for tab in ["Aereos", "Hoteis", "Carros", "Servicos"]:
         try:
             df_tab = load_gsheets_tab(creds_dict, sheet_url, tab)
+            if df_tab.empty:
+                continue
             t_ped = next(c for c in df_tab.columns if "pedido" in c.lower())
             t_val = next((c for c in df_tab.columns if c.lower() in ["total", "valor total"]), None)
             if t_val is None:
                 continue
             df_tab[t_val] = df_tab[t_val].apply(parse_br)
-            grouped = df_tab.groupby(t_ped.astype(str))[t_val].sum()
-            total_calc += df_pedidos[ped_id].map(grouped).fillna(0.0)
+            # Build lookup: for each pedido in this tab, sum its values
+            df_tab[t_ped] = df_tab[t_ped].astype(str)
+            lookup = df_tab.groupby(t_ped)[t_val].sum()
+            # Map into pedidos
+            mapped = ped_vals.map(lookup).fillna(0.0)
+            total_calc = total_calc + mapped
         except Exception:
             continue
 
-    # Cap outliers (Brazilian-formatted values that parse to billions)
     total_calc = total_calc.clip(upper=MAX_VALOR)
     return total_calc
 
