@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import io
 
-st.set_page_config(page_title="Dashboard de Pedidos", page_icon="📊", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Dashboard - COPASTUR", page_icon="📊", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
 <style>
@@ -27,7 +27,15 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.sidebar.markdown("<h2 style='color:#1a5276; margin-bottom:0;'>📊 Dashboard</h2><p style='color:#6c757d; font-size:0.85rem; margin-top:0;'>Fujicom - Pedidos</p>", unsafe_allow_html=True)
+logo_path = "Fujicom/logo_fujicom.jpg"
+try:
+    from PIL import Image
+    logo = Image.open(logo_path)
+    logo = logo.resize((180, int(logo.height * 180 / logo.width)))
+    st.sidebar.image(logo, use_container_width=False)
+except:
+    pass
+st.sidebar.markdown("<h2 style='color:#1a5276; margin-bottom:0;'>Dashboard - COPASTUR</h2><p style='color:#6c757d; font-size:0.85rem; margin-top:0;'>Fujicom - Pedidos</p>", unsafe_allow_html=True)
 st.sidebar.markdown("---")
 
 GCP_JSON_SECRET = st.secrets.get("gcp_service_account") or st.secrets.get("gcp_service_account_json")
@@ -50,11 +58,15 @@ if not USE_SAMPLE_DATA and not CLOUD_MODE:
 def parse_br(v):
     if pd.isna(v) or v == "" or v is None:
         return 0.0
+    if isinstance(v, (int, float)):
+        return float(v)
     v = str(v).strip().replace(".", "").replace(",", ".")
     try:
         return float(v)
     except:
         return 0.0
+
+MAX_VALOR = 10_000_000  # valores acima disso sao considerados erro de formato
 
 STATUS_TRANSLATE = {
     "awaitingApprovalOfCost": "Aguardando Aprov. Custo",
@@ -63,6 +75,40 @@ STATUS_TRANSLATE = {
     "finalized": "Finalizado", "issued": "Emitido",
     "pending": "Pendente", "concluded": "Concluído",
 }
+
+def load_gsheets_tab(creds_dict, sheet_url, tab_name):
+    import gspread, json
+    from oauth2client.service_account import ServiceAccountCredentials
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    if isinstance(creds_dict, str):
+        creds_dict = json.loads(creds_dict)
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    client = gspread.authorize(creds)
+    sheet = client.open_by_url(sheet_url)
+    ws = sheet.worksheet(tab_name)
+    return pd.DataFrame(ws.get_all_records())
+
+def compute_subtotais(df_pedidos, creds_dict, sheet_url):
+    ped_id = next(c for c in df_pedidos.columns if "pedido" in c.lower() and "root" not in c.lower())
+    df_pedidos[ped_id] = df_pedidos[ped_id].astype(str)
+    total_calc = pd.Series(0.0, index=df_pedidos.index)
+
+    for tab in ["Aereos", "Hoteis", "Carros", "Servicos"]:
+        try:
+            df_tab = load_gsheets_tab(creds_dict, sheet_url, tab)
+            t_ped = next(c for c in df_tab.columns if "pedido" in c.lower())
+            t_val = next((c for c in df_tab.columns if c.lower() in ["total", "valor total"]), None)
+            if t_val is None:
+                continue
+            df_tab[t_val] = df_tab[t_val].apply(parse_br)
+            grouped = df_tab.groupby(t_ped.astype(str))[t_val].sum()
+            total_calc += df_pedidos[ped_id].map(grouped).fillna(0.0)
+        except Exception:
+            continue
+
+    # Cap outliers (Brazilian-formatted values that parse to billions)
+    total_calc = total_calc.clip(upper=MAX_VALOR)
+    return total_calc
 
 @st.cache_data(ttl=300)
 def load_sample_data():
@@ -139,7 +185,10 @@ elif CLOUD_MODE:
             js = json.dumps(GCP_JSON_SECRET) if not isinstance(GCP_JSON_SECRET, str) else GCP_JSON_SECRET
             df_pedidos = load_pedidos_gsheets(js, SHEET_URL_SECRET)
             df_reemb = load_reembolsos_gsheets(js, SHEET_URL_SECRET)
-            st.sidebar.success(f"✅ {len(df_pedidos)} pedidos + {len(df_reemb)} reembolsos")
+            # Compute real totals from sub-tabs (Aereos, Hoteis, Carros, Servicos)
+            with st.spinner("Calculando totais reais..."):
+                df_pedidos["total_calculado"] = compute_subtotais(df_pedidos, js, SHEET_URL_SECRET)
+            st.sidebar.success(f"✅ {len(df_pedidos)} pedidos")
         except Exception as e:
             st.sidebar.error(f"Erro: {e}")
             df_pedidos = load_sample_data()
@@ -154,6 +203,7 @@ else:
                 jk = json_key.read()
                 df_pedidos = load_pedidos_gsheets(jk, sheet_url)
                 df_reemb = load_reembolsos_gsheets(jk, sheet_url)
+                df_pedidos["total_calculado"] = compute_subtotais(df_pedidos, jk, sheet_url)
                 st.session_state.df_loaded = df_pedidos
                 st.session_state.df_reemb = df_reemb
                 st.sidebar.success(f"✅ {len(df_pedidos)} registros")
@@ -190,6 +240,19 @@ COLS["TIPO"] = next((c for c in df_pedidos.columns if "tipo" in c.lower()), None
 # ── PARSE ──
 if COLS["VALOR"]:
     df_pedidos[COLS["VALOR"]] = df_pedidos[COLS["VALOR"]].apply(parse_br)
+
+# Cap outliers in VALOR (Brazilian-formatted strings that became billions)
+if COLS["VALOR"]:
+    outliers = (df_pedidos[COLS["VALOR"]] > MAX_VALOR).sum()
+    df_pedidos[COLS["VALOR"]] = df_pedidos[COLS["VALOR"]].clip(upper=MAX_VALOR)
+
+# If total_calculado exists (from sub-tabs), use it as primary value
+if "total_calculado" in df_pedidos.columns:
+    val_col = COLS["VALOR"]
+    # Use subtotal when available (> 0), otherwise fall back to capped VALOR
+    df_pedidos[val_col] = df_pedidos["total_calculado"].combine_first(df_pedidos[val_col])
+    df_pedidos = df_pedidos.drop(columns=["total_calculado"])
+
 if COLS["STATUS"]:
     df_pedidos[COLS["STATUS"]] = df_pedidos[COLS["STATUS"]].astype(str).map(STATUS_TRANSLATE).fillna(df_pedidos[COLS["STATUS"]].astype(str)).replace("", "Indefinido")
 for col in list(COLS.values()):
@@ -282,8 +345,8 @@ ticket_medio = total_gasto / total_pedidos if total_pedidos > 0 else 0
 st.markdown(f"""
 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
     <div>
-        <h1 style="margin:0;">📊 Dashboard de Pedidos</h1>
-        <p style="color:#6c757d; margin:0;">{total_pedidos} pedidos • R$ {total_gasto:,.2f} em gastos</p>
+        <h1 style="margin:0;">📊 Dashboard - COPASTUR</h1>
+        <p style="color:#6c757d; margin:0;">{total_pedidos} de {len(df_pedidos)} pedidos • R$ {total_gasto:,.2f} em gastos</p>
     </div>
     <div style="font-size:0.85rem; color:#6c757d;">{datetime.now().strftime("%d/%m/%Y %H:%M")}</div>
 </div>
