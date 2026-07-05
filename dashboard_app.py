@@ -735,10 +735,10 @@ with tabs[ti]:
                             with ca2:
                                 st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Distribuição por Motivo de Viagem</h3>", unsafe_allow_html=True)
                                 gc = df_st[mot_col].value_counts()
-                                fig = go.Figure(data=[go.Pie(labels=gc.index, values=gc.values, hole=0.55,
+                                fig = go.Figure(data=[go.Pie(labels=gc.index, values=gc.values, hole=0.65,
                                     marker=dict(colors=px.colors.sequential.Blues[::-1][:len(gc)]),
                                     textinfo="label+percent", textposition="outside", showlegend=False)])
-                                fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"))
+                                fig.update_layout(height=300, margin=dict(l=60, r=60, t=20, b=60), paper_bgcolor="white", font=dict(color="#1a1a2e"))
                                 st.plotly_chart(fig, use_container_width=True)
                         else:
                             st.caption("Sem coluna de motivo viagem.")
@@ -873,7 +873,7 @@ with tabs[ti]:
                                 elif sk == "Adiantamentos":
                                     mot_col = next((c for c in df_st.columns if "motivo" in c.lower()), None)
                                     if mot_col:
-                                        st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Gastos por Solicitante por Motivo de Viagem</h3>", unsafe_allow_html=True)
+                                        st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total por Solicitante por Motivo de Viagem</h3>", unsafe_allow_html=True)
                                         gs_st = df_st.groupby(["Solicitante", mot_col])[val_col].sum().reset_index()
                                         fig = px.bar(gs_st, x="Solicitante", y=val_col, color=mot_col,
                                             color_discrete_sequence=px.colors.qualitative.Bold,
