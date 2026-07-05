@@ -721,7 +721,7 @@ with tabs[ti]:
                     if grupo_col:
                         c1, c2 = st.columns([1, 1])
                         with c1:
-                            st.subheader(f"Gastos por {grupo_col}")
+                            st.subheader(f"Total por {grupo_col}")
                             gs = df_st.groupby(grupo_col)[val_col].sum().sort_values(ascending=True).tail(15)
                             fig = go.Figure(go.Bar(x=gs.values, y=gs.index, orientation="h",
                                 marker=dict(color=gs.values, colorscale="Blues", line=dict(width=0)),
@@ -788,8 +788,8 @@ with tabs[ti]:
                                 elif sk == "Hoteis":
                                     cid_col = next((c for c in df_st.columns if "cidade" in c.lower()), None)
                                     if cid_col:
-                                        st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total por Cidade</h3>", unsafe_allow_html=True)
-                                        scid_st = df_st.groupby(cid_col)[val_col].sum().sort_values(ascending=True)
+                                        st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total por Cidade <span style='font-size:10px; font-style:italic; color:#8899b8;'>(Total dos 20 maiores gastos por cidades)</span></h3>", unsafe_allow_html=True)
+                                        scid_st = df_st.groupby(cid_col)[val_col].sum().sort_values(ascending=False).head(20).sort_values(ascending=True)
                                         fig = go.Figure(go.Bar(x=scid_st.values, y=scid_st.index, orientation="h",
                                             marker=dict(color=scid_st.values, colorscale="Blues", line=dict(width=0)),
                                             text=scid_st.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
