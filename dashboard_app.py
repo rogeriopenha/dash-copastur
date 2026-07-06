@@ -832,8 +832,8 @@ with tabs[ti]:
                                     gs_st["Pct"] = gs_st.apply(lambda r: r[val_col] / sol_tot[r["Solicitante"]] * 100 if sol_tot[r["Solicitante"]] > 0 else 0, axis=1).round(1)
                                     fig = px.bar(gs_st, x="Solicitante", y="Pct", color=grupo_col,
                                         color_discrete_sequence=px.colors.qualitative.Bold,
-                                        barmode="stack", custom_data=[val_col], orientation="v")
-                                    fig.update_traces(texttemplate="%{y:.1f}%", textposition="outside", textfont=dict(size=9),
+                                        barmode="stack", custom_data=[val_col])
+                                    fig.update_traces(texttemplate="%{y:.1f}%", textposition="inside", insidetextanchor="start", textfont=dict(size=9),
                                         hovertemplate="R$ %{customdata[0]:,.2f} (%{y:.1f}%)<extra>%{fullData.name}</extra>")
                                     fig.update_layout(height=400, margin=dict(l=10, r=10, t=40, b=80),
                                         paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white",
