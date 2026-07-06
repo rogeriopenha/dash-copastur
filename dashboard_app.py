@@ -720,7 +720,7 @@ with tabs[ti]:
                     if sk == "Reembolsos":
                         _desp_col = next((c for c in df_st.columns if "descri" in c.lower()), None)
                         if _desp_col:
-                            df_st["_desp_clean"] = df_st[_desp_col].astype(str).str.replace(r"\s*-\s*\w+\s*$", "", regex=True).str.strip()
+                            df_st["_desp_clean"] = df_st[_desp_col].astype(str).str.replace(r"\s*-.*$", "", regex=True).str.strip()
 
                     total_val = df_st[val_col].sum()
                     count_records = len(df_st)
@@ -814,8 +814,8 @@ with tabs[ti]:
                                     if ped_col_st and SOLICITANTE_MAP:
                                         df_st["Solicitante"] = df_st[ped_col_st].astype(str).str.strip().map(SOLICITANTE_MAP)
                                     if "Solicitante" in df_st.columns and df_st["Solicitante"].notna().sum() > 0:
-                                        st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total por Solicitante</h3>", unsafe_allow_html=True)
-                                        stotal_st = df_st.groupby("Solicitante")[val_col].sum().sort_values(ascending=True)
+                                        st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total por Solicitante <span style='font-size:10px; font-style:italic; color:#8899b8;'>(20 maiores gastos)</span></h3>", unsafe_allow_html=True)
+                                        stotal_st = df_st.groupby("Solicitante")[val_col].sum().sort_values(ascending=False).head(20).sort_values(ascending=True)
                                         fig = go.Figure(go.Bar(x=stotal_st.values, y=stotal_st.index, orientation="h",
                                             marker=dict(color=stotal_st.values, colorscale="Blues", line=dict(width=0)),
                                             text=stotal_st.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
@@ -830,22 +830,24 @@ with tabs[ti]:
                                     gs_st = df_st.groupby(["Solicitante", grupo_col])[val_col].sum().reset_index()
                                     sol_tot = gs_st.groupby("Solicitante")[val_col].sum()
                                     gs_st["Pct"] = gs_st.apply(lambda r: r[val_col] / sol_tot[r["Solicitante"]] * 100 if sol_tot[r["Solicitante"]] > 0 else 0, axis=1).round(1)
-                                    fig = px.bar(gs_st, y="Solicitante", x="Pct", color=grupo_col,
+                                    fig = px.bar(gs_st, x="Solicitante", y="Pct", color=grupo_col,
                                         color_discrete_sequence=px.colors.qualitative.Bold,
-                                        barmode="stack", custom_data=[val_col], orientation="h")
-                                    fig.update_traces(texttemplate="%{x:.1f}%", textposition="outside", textfont=dict(size=9),
-                                        hovertemplate="R$ %{customdata[0]:,.2f} (%{x:.1f}%)<extra>%{fullData.name}</extra>")
+                                        barmode="stack", custom_data=[val_col], orientation="v")
+                                    fig.update_traces(texttemplate="%{y:.1f}%", textposition="outside", textfont=dict(size=9),
+                                        hovertemplate="R$ %{customdata[0]:,.2f} (%{y:.1f}%)<extra>%{fullData.name}</extra>")
                                     fig.update_layout(height=400, margin=dict(l=10, r=10, t=40, b=80),
                                         paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white",
-                                        xaxis=dict(title="%", range=[0, 110]),
+                                        yaxis=dict(title="%", range=[0, 110]),
                                         legend=dict(orientation="h", y=-0.35, font=dict(size=8)))
                                     st.plotly_chart(fig, use_container_width=True)
                                 st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Distribuição por Despesa</h3>", unsafe_allow_html=True)
-                                gc_val = df_st.groupby(grupo_col)[val_col].sum()
-                                fig = go.Figure(data=[go.Pie(labels=gc_val.index, values=gc_val.values, hole=0.55,
-                                    marker=dict(colors=px.colors.sequential.Blues[::-1][:len(gc_val)]),
-                                    textinfo="label+percent", textposition="outside", showlegend=False)])
-                                fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"))
+                                gc_val = df_st.groupby(grupo_col)[val_col].sum().sort_values(ascending=False)
+                                fig = go.Figure(go.Bar(x=gc_val.index, y=gc_val.values,
+                                    marker=dict(color=gc_val.values, colorscale="Blues", line=dict(width=0)),
+                                    text=gc_val.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
+                                fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10),
+                                    paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(title=None), yaxis=dict(title="R$"))
+                                fig.update_traces(hovertemplate="R$ %{y:,.2f}<extra></extra>")
                                 st.plotly_chart(fig, use_container_width=True)
                                 desp_col = next((c for c in df_st.columns if "descri" in c.lower()), None)
                                 if desp_col and grupo_col:
@@ -926,12 +928,12 @@ with tabs[ti]:
                                         fig = px.bar(gs_st, x="Solicitante", y="Pct", color=mot_col,
                                             color_discrete_sequence=px.colors.qualitative.Bold,
                                             barmode="stack", custom_data=[val_col])
-                                        fig.update_traces(texttemplate="%{y:.1f}%", textposition="outside", textfont=dict(size=9),
+                                        fig.update_traces(texttemplate="%{y:.1f}%", textposition="outside", cliponaxis=False, textfont=dict(size=9),
                                             hovertemplate="R$ %{customdata[0]:,.2f} (%{y:.1f}%)<extra>%{fullData.name}</extra>")
-                                        fig.update_layout(height=350, margin=dict(l=10, r=10, t=40, b=80),
+                                        fig.update_layout(height=400, margin=dict(l=10, r=120, t=50, b=10),
                                             paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white",
-                                            yaxis=dict(title="%", range=[0, 110]),
-                                            legend=dict(orientation="h", y=-0.35, font=dict(size=8)))
+                                            yaxis=dict(title="%", range=[0, 115]),
+                                            legend=dict(orientation="v", y=1, x=1.02, font=dict(size=8)))
                                         for sol in sol_tot.index:
                                             fig.add_annotation(x=sol, y=106, text=f"R$ {sol_tot[sol]:,.0f}",
                                                 showarrow=False, font=dict(size=9, color="#1a1a2e"))
