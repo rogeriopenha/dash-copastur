@@ -69,33 +69,18 @@ st.markdown("""
 logo_path = "Fujicom/logo_fujicom.jpg"
 
 # ─── LOGIN SYSTEM ───
-_USER_DB = "users_data.json"
+ALLOWED_EMAILS = [
+    "glecya.frota@fujicom.com.br",
+    "luis.claudio@fujicom.com.br",
+    "larissa.fujita@fujicom.com.br",
+    "rogeriopenha@gmail.com",
+]
 
-def _hash(pw):
-    return hashlib.sha256(pw.encode()).hexdigest()
-
-def _load_users():
-    if os.path.exists(_USER_DB):
-        with open(_USER_DB) as f:
-            return json.load(f)
-    return {
-        "glecya.frota@fujicom.com.br": {"pw": _hash("fujicom2026"), "chg": True, "nm": "Glecya Frota"},
-        "luis.claudio@fujicom.com.br": {"pw": _hash("fujicom2026"), "chg": True, "nm": "Luis Claudio"},
-        "larissa.fujita@fujicom.com.br": {"pw": _hash("fujicom2026"), "chg": True, "nm": "Larissa Fujita"},
-        "rogeriopenha@gmail.com":      {"pw": _hash("fujicom2026"), "chg": True, "nm": "Rogerio Penha"},
-    }
-
-def _save_users(u):
-    with open(_USER_DB, "w") as f:
-        json.dump(u, f, indent=2)
-
-if "user" not in st.session_state:
-    st.session_state.user = None
-
-_users = _load_users()
+if "authenticated_email" not in st.session_state:
+    st.session_state.authenticated_email = None
 
 # ─── LOGIN SCREEN ───
-if not st.session_state.user:
+if not st.session_state.authenticated_email:
     st.markdown('<div class="login-container">', unsafe_allow_html=True)
     c1, c2, c3 = st.columns([1, 1, 1])
     with c2:
@@ -110,11 +95,15 @@ if not st.session_state.user:
             email = st.text_input("Email", placeholder="seu@email.com.br")
             pw = st.text_input("Senha", placeholder="Digite sua senha", type="password")
             if st.form_submit_button("Entrar", type="primary", use_container_width=True):
-                if email in _users and _users[email]["pw"] == _hash(pw):
-                    st.session_state.user = email
+                email_ok = email.strip().lower() in [e.strip().lower() for e in ALLOWED_EMAILS]
+                pw_ok = pw == "fujicom2026"
+                if email_ok and pw_ok:
+                    st.session_state.authenticated_email = email.strip().lower()
                     st.rerun()
+                elif not email_ok:
+                    st.error("Email não autorizado")
                 else:
-                    st.error("Email ou senha inválidos")
+                    st.error("Senha incorreta")
     st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
@@ -126,10 +115,10 @@ try:
 except:
     pass
 st.sidebar.markdown("<h2 style='color:#1a5276; margin-bottom:0;'>Dashboard - COPASTUR</h2><p style='color:#6c757d; font-size:0.85rem; margin-top:0;'>Fujicom - Pedidos</p>", unsafe_allow_html=True)
-_email = st.session_state.user
-st.sidebar.markdown(f"👤 {_users[_email]['nm']} — <span style='font-size:0.75rem;color:#6c757d;'>{_email}</span>", unsafe_allow_html=True)
+_email = st.session_state.authenticated_email
+st.sidebar.markdown(f"👤 {_email}", unsafe_allow_html=True)
 if st.sidebar.button("🚪 Sair", type="primary"):
-    st.session_state.user = None
+    st.session_state.authenticated_email = None
     st.rerun()
 st.sidebar.markdown("---")
 
@@ -147,31 +136,6 @@ if not CLOUD_MODE:
     json_key = st.sidebar.file_uploader("Service Account JSON", type="json")
     sheet_url = st.sidebar.text_input("URL da Planilha", placeholder="https://docs.google.com/spreadsheets/d/...")
     conectar = st.sidebar.button("Conectar", type="primary")
-
-# ─── PASSWORD CHANGE ───
-if _users[st.session_state.user]["chg"]:
-    st.markdown('<div class="login-container change-pw-container">', unsafe_allow_html=True)
-    nm = _users[st.session_state.user]["nm"]
-    st.markdown(f"<h3 style='color:#e8edf5;'>Bem-vindo, {nm}!</h3>", unsafe_allow_html=True)
-    st.markdown("<p style='color:#c5ccd9;'>Por favor, defina uma nova senha.</p>", unsafe_allow_html=True)
-    with st.form("change_pw_form"):
-        npw = st.text_input("Nova senha", type="password", placeholder="Mínimo 6 caracteres")
-        cpw = st.text_input("Confirmar nova senha", type="password")
-        if st.form_submit_button("Salvar", type="primary", use_container_width=True):
-            if not npw:
-                st.error("Digite uma nova senha")
-            elif npw != cpw:
-                st.error("As senhas não conferem")
-            elif len(npw) < 6:
-                st.error("A senha deve ter no mínimo 6 caracteres")
-            else:
-                _users[st.session_state.user]["pw"] = _hash(npw)
-                _users[st.session_state.user]["chg"] = False
-                _save_users(_users)
-                st.success("Senha alterada com sucesso!")
-                st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.stop()
 
 def parse_br(v):
     if pd.isna(v) or v == "" or v is None:
