@@ -440,7 +440,6 @@ if COLS["STATUS"]: tab_labels.append("📊 Por Status")
 if COLS["SOLICITANTE"]: tab_labels.append("👥 Por Solicitante")
 if data_ok: tab_labels.append("📅 Tendência")
 tab_labels.append("📋 Dados Exportáveis")
-tab_labels.append("📋 Detalhamento")
 
 tabs = st.tabs(tab_labels)
 ti = 0
@@ -643,8 +642,9 @@ with tabs[ti]:
     st.markdown("</div>", unsafe_allow_html=True)
     ti += 1
 
-# TAB 6: Detalhamento por Aba (segunda linha de abas)
-with tabs[ti]:
+st.markdown("---")
+st.subheader("📋 Detalhamento por Aba")
+def _render_detalhamento():
     _creds = st.session_state.get("_creds")
     _sheet_url = st.session_state.get("_sheet_url")
 
@@ -1008,3 +1008,6 @@ with tabs[ti]:
                     s2.download_button("📥 Excel", output_st.getvalue(), f"{sk.lower()}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True, key=f"dl_subtab_{sk}_xlsx")
                     s3.download_button("📥 JSON", df_st_disp.to_json(orient="records", force_ascii=False, indent=2).encode("utf-8-sig"), f"{sk.lower()}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json", "application/json", use_container_width=True, key=f"dl_subtab_{sk}_json")
                     st.markdown("</div>", unsafe_allow_html=True)
+
+
+_render_detalhamento()
