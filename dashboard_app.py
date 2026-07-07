@@ -74,6 +74,8 @@ ALLOWED_EMAILS = [
     "luis.claudio@fujicom.com.br",
     "larissa.fujita@fujicom.com.br",
     "rogeriopenha@gmail.com",
+    "guilherme.abreu@fujicom.com.br",
+    "financeiro01@fujicom.com.br",
 ]
 
 if "authenticated_email" not in st.session_state:
@@ -323,15 +325,21 @@ df_filt = df_pedidos.copy()
 data_col = COLS["DATA"]
 data_ok = data_col and pd.api.types.is_datetime64_any_dtype(df_filt[data_col])
 if data_ok:
-    min_d, max_d = df_filt[data_col].min().date(), df_filt[data_col].max().date()
-    st.sidebar.markdown("### 📅 Período")
-    dc1, dc2 = st.sidebar.columns(2)
-    with dc1:
-        start_date = st.date_input("De", value=min_d, min_value=min_d, max_value=max_d, format="DD/MM/YYYY")
-    with dc2:
-        end_date = st.date_input("Até", value=max_d, min_value=min_d, max_value=max_d, format="DD/MM/YYYY")
-    df_filt = df_filt[(df_filt[data_col].dt.date >= start_date) & (df_filt[data_col].dt.date <= end_date)]
-    filtros_aplicados += 1
+    valid_dates = df_filt[data_col].dropna()
+    if len(valid_dates) == 0:
+        data_ok = False
+    else:
+        min_d, max_d = valid_dates.min().date(), valid_dates.max().date()
+        st.sidebar.markdown("### 📅 Período")
+        dc1, dc2 = st.sidebar.columns(2)
+        with dc1:
+            start_date = st.date_input("De", value=min_d, min_value=min_d, max_value=max_d, format="DD/MM/YYYY")
+        with dc2:
+            end_date = st.date_input("Até", value=max_d, min_value=min_d, max_value=max_d, format="DD/MM/YYYY")
+        date_mask = (df_filt[data_col].dt.date >= start_date) & (df_filt[data_col].dt.date <= end_date)
+        nat_mask = df_filt[data_col].isna()
+        df_filt = df_filt[date_mask | nat_mask]
+        filtros_aplicados += 1
 
 # ── SINGLE ORDER FILTER ──
 st.sidebar.markdown("### 🔎 Pedido Específico")
@@ -440,6 +448,7 @@ if COLS["STATUS"]: tab_labels.append("📊 Por Status")
 if COLS["SOLICITANTE"]: tab_labels.append("👥 Por Solicitante")
 if data_ok: tab_labels.append("📅 Tendência")
 tab_labels.append("📋 Dados Exportáveis")
+tab_labels.append("📋 Detalhamento")
 
 tabs = st.tabs(tab_labels)
 ti = 0
@@ -642,9 +651,8 @@ with tabs[ti]:
     st.markdown("</div>", unsafe_allow_html=True)
     ti += 1
 
-st.markdown("---")
-st.subheader("📋 Detalhamento por Aba")
-def _render_detalhamento():
+# TAB 6: Detalhamento por Aba (segunda linha de abas)
+with tabs[ti]:
     _creds = st.session_state.get("_creds")
     _sheet_url = st.session_state.get("_sheet_url")
 
@@ -1008,6 +1016,3 @@ def _render_detalhamento():
                     s2.download_button("📥 Excel", output_st.getvalue(), f"{sk.lower()}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True, key=f"dl_subtab_{sk}_xlsx")
                     s3.download_button("📥 JSON", df_st_disp.to_json(orient="records", force_ascii=False, indent=2).encode("utf-8-sig"), f"{sk.lower()}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json", "application/json", use_container_width=True, key=f"dl_subtab_{sk}_json")
                     st.markdown("</div>", unsafe_allow_html=True)
-
-
-_render_detalhamento()
