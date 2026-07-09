@@ -400,6 +400,8 @@ with c2:
     if filtros_aplicados > 0 and st.button("Limpar"):
         st.rerun()
 
+FILTERED_PEDIDOS = set(df_filt[COLS["PEDIDO"]].astype(str).str.strip()) if COLS["PEDIDO"] else set()
+
 st.sidebar.markdown('<div style="background:#16233a; border:1px solid #253e81; border-radius:10px; padding:0.7rem 1rem; box-shadow:0 3px 0 #0f1a2e, 0 4px 12px rgba(37,62,129,0.25); margin-bottom:0.8rem;">'
     '<p style="margin:0; font-size:12px; font-style:italic; color:#ffd700; line-height:1.6;">'
     'Desenvolvido por <b>Rogerio Penha</b><br>'
@@ -629,6 +631,9 @@ with tabs[ti]:
                     except Exception:
                         df_ed = None
                     if df_ed is not None and not df_ed.empty:
+                        _ed_ped_col = next((c for c in df_ed.columns if "pedido" in c.lower()), None)
+                        if _ed_ped_col and FILTERED_PEDIDOS:
+                            df_ed = df_ed[df_ed[_ed_ped_col].astype(str).str.strip().isin(FILTERED_PEDIDOS)]
                         st.caption(f"{len(df_ed)} registros • {len(df_ed.columns)} colunas")
                         search_ed = st.text_input("🔎 Buscar", placeholder="Digite para filtrar...", key=f"ed_search_{ek}")
                         df_ed_disp = df_ed.copy()
@@ -693,6 +698,10 @@ with tabs[ti]:
                         _desp_col = next((c for c in df_st.columns if "descri" in c.lower()), None)
                         if _desp_col:
                             df_st["_desp_clean"] = df_st[_desp_col].astype(str).str.replace(r"\s*-.*$", "", regex=True).str.strip()
+
+                    _st_ped_col = next((c for c in df_st.columns if "pedido" in c.lower()), None)
+                    if _st_ped_col and FILTERED_PEDIDOS:
+                        df_st = df_st[df_st[_st_ped_col].astype(str).str.strip().isin(FILTERED_PEDIDOS)]
 
                     total_val = df_st[val_col].sum()
                     count_records = len(df_st)
