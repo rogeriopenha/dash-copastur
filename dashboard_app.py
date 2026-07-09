@@ -4,10 +4,10 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
-import io
-import hashlib
 import json
+import io
 import os
+import time
 from PIL import Image
 
 st.set_page_config(page_title="Dashboard - COPASTUR", page_icon="📊", layout="wide", initial_sidebar_state="expanded")
@@ -628,6 +628,7 @@ with tabs[ti]:
                 else:
                     try:
                         df_ed = load_subtab(ek, _ed_creds, _ed_url)
+                        time.sleep(0.8)
                     except Exception:
                         df_ed = None
                     if df_ed is not None and not df_ed.empty:
@@ -674,6 +675,7 @@ with tabs[ti]:
             with subtabs_2[si]:
                 try:
                     df_st = load_subtab(sk, _creds, _sheet_url)
+                    time.sleep(0.8)
                 except Exception:
                     df_st = None
 
