@@ -407,6 +407,11 @@ if data_ok:
         nat_mask = df_filt[data_col].isna()
         df_filt = df_filt[date_mask | nat_mask]
         filtros_aplicados += 1
+elif COLS["DATA"]:
+    st.sidebar.markdown(f'<p style="font-size:11px; color:#ff6b6b; margin:0;">⚠️ Coluna "{COLS["DATA"]}" não é data</p>', unsafe_allow_html=True)
+else:
+    st.sidebar.markdown(f'<p style="font-size:11px; color:#ff6b6b; margin:0;">⚠️ Nenhuma coluna de data encontrada em "Pedidos"</p>', unsafe_allow_html=True)
+    st.sidebar.markdown(f'<p style="font-size:11px; color:#8899b8; margin:0;">Colunas: {", ".join(df_pedidos.columns[:8])}{"..." if len(df_pedidos.columns) > 8 else ""}</p>', unsafe_allow_html=True)
 
 # ── SINGLE ORDER FILTER ──
 st.sidebar.markdown("### 🔎 Pedido Específico")
