@@ -342,6 +342,12 @@ if df_viajantes is not None and not df_viajantes.empty:
         VIAJANTE_LIST = sorted(df_viajantes[VIAJ_NOME].dropna().unique())
         VIAJANTE_ORDER_MAP = df_viajantes.groupby(VIAJ_NOME)[VIAJ_PED].apply(set).to_dict()
 
+
+# ── VIAJANTE REVERSE MAP (pedido → viajante name) ──
+VIAJANTE_REVERSE_MAP = {}
+if VIAJ_PED and VIAJ_NOME and df_viajantes is not None and not df_viajantes.empty:
+    # Most pedidos have one traveler; use first for charts
+    VIAJANTE_REVERSE_MAP = df_viajantes.groupby(VIAJ_PED)[VIAJ_NOME].first().to_dict()
 # ── SIDEBAR FILTERS ──
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🔍 Filtros")
@@ -484,7 +490,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 # ── TABS ──
 tab_labels = ["📈 Visão Geral"]
 if COLS["STATUS"]: tab_labels.append("📊 Por Status")
-if COLS["SOLICITANTE"]: tab_labels.append("👥 Por Solicitante")
+if VIAJANTE_REVERSE_MAP and COLS["PEDIDO"]: tab_labels.append("👥 Por Viajante")
 if data_ok: tab_labels.append("📅 Tendência")
 tab_labels.append("📋 Dados Exportáveis")
 tab_labels.append("📋 Detalhamento")
@@ -567,15 +573,18 @@ if COLS["STATUS"]:
         st.markdown("</div>", unsafe_allow_html=True)
         ti += 1
 
-# TAB 3: Por Solicitante
-if COLS["SOLICITANTE"]:
+# TAB 3: Por Viajante
+if VIAJANTE_REVERSE_MAP and COLS["PEDIDO"]:
     with tabs[ti]:
+        df_filt_via = df_filt.copy()
+        df_filt_via["Viajante"] = df_filt_via[COLS["PEDIDO"]].astype(str).str.strip().map(VIAJANTE_REVERSE_MAP)
+        df_filt_via = df_filt_via.dropna(subset=["Viajante"])
         c1, c2 = st.columns([1, 1])
         with c1:
             st.markdown('<div class="card">', unsafe_allow_html=True)
             st.subheader("Ranking de Gastos")
-            if COLS["VALOR"]:
-                g = df_filt.groupby(COLS["SOLICITANTE"])[COLS["VALOR"]].sum().sort_values(ascending=True).tail(20)
+            if COLS["VALOR"] and not df_filt_via.empty:
+                g = df_filt_via.groupby("Viajante")[COLS["VALOR"]].sum().sort_values(ascending=True).tail(20)
                 fig = go.Figure(go.Bar(x=g.values, y=g.index, orientation="h",
                     marker=dict(color=g.values, colorscale="Blues", line=dict(width=0)),
                     text=g.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
@@ -586,7 +595,7 @@ if COLS["SOLICITANTE"]:
         with c2:
             st.markdown('<div class="card">', unsafe_allow_html=True)
             st.subheader("Volume de Pedidos")
-            sc = df_filt[COLS["SOLICITANTE"]].value_counts().sort_values(ascending=True).tail(20)
+            sc = df_filt_via["Viajante"].value_counts().sort_values(ascending=True).tail(20)
             fig = go.Figure(go.Bar(x=sc.values, y=sc.index, orientation="h",
                 marker=dict(color=sc.values, colorscale="Teal", line=dict(width=0)),
                 text=sc.values, textposition="outside"))
@@ -831,11 +840,11 @@ with tabs[ti]:
                                     st.plotly_chart(fig, use_container_width=True, key=f"chart_{sk}_total_despesa")
                                 with r1c2:
                                     ped_col_st = next((c for c in df_st.columns if "pedido" in c.lower()), None)
-                                    if ped_col_st and SOLICITANTE_MAP:
-                                        df_st["Solicitante"] = df_st[ped_col_st].astype(str).str.strip().map(SOLICITANTE_MAP)
-                                    if "Solicitante" in df_st.columns and df_st["Solicitante"].notna().sum() > 0:
-                                        st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total por Solicitante <span style='font-size:10px; font-style:italic; color:#8899b8;'>(20 maiores gastos)</span></h3>", unsafe_allow_html=True)
-                                        stotal_st = df_st.groupby("Solicitante")[val_col].sum().sort_values(ascending=False).head(20).sort_values(ascending=True)
+                                    if ped_col_st and VIAJANTE_REVERSE_MAP:
+                                        df_st["Viajante"] = df_st[ped_col_st].astype(str).str.strip().map(VIAJANTE_REVERSE_MAP)
+                                    if "Viajante" in df_st.columns and df_st["Viajante"].notna().sum() > 0:
+                                        st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total por Viajante <span style='font-size:10px; font-style:italic; color:#8899b8;'>(20 maiores gastos)</span></h3>", unsafe_allow_html=True)
+                                        stotal_st = df_st.groupby("Viajante")[val_col].sum().sort_values(ascending=False).head(20).sort_values(ascending=True)
                                         fig = go.Figure(go.Bar(x=stotal_st.values, y=stotal_st.index, orientation="h",
                                             marker=dict(color=stotal_st.values, colorscale="Blues", line=dict(width=0)),
                                             text=stotal_st.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
@@ -844,13 +853,13 @@ with tabs[ti]:
                                         fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
                                         st.plotly_chart(fig, use_container_width=True, key=f"chart_{sk}_total_solicitante")
                                     else:
-                                        st.caption("Sem solicitante para esta despesa.")
-                                if "Solicitante" in df_st.columns and df_st["Solicitante"].notna().sum() > 0:
-                                    st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Gastos: Solicitante x Categoria</h3>", unsafe_allow_html=True)
-                                    gs_st = df_st.groupby(["Solicitante", grupo_col])[val_col].sum().reset_index()
-                                    sol_tot = gs_st.groupby("Solicitante")[val_col].sum()
-                                    gs_st["Pct"] = gs_st.apply(lambda r: r[val_col] / sol_tot[r["Solicitante"]] * 100 if sol_tot[r["Solicitante"]] > 0 else 0, axis=1).round(1)
-                                    fig = px.bar(gs_st, x="Solicitante", y="Pct", color=grupo_col,
+                                        st.caption("Sem viajante para esta despesa.")
+                                if "Viajante" in df_st.columns and df_st["Viajante"].notna().sum() > 0:
+                                    st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Gastos: Viajante x Categoria</h3>", unsafe_allow_html=True)
+                                    gs_st = df_st.groupby(["Viajante", grupo_col])[val_col].sum().reset_index()
+                                    via_tot = gs_st.groupby("Viajante")[val_col].sum()
+                                    gs_st["Pct"] = gs_st.apply(lambda r: r[val_col] / via_tot[r["Viajante"]] * 100 if via_tot[r["Viajante"]] > 0 else 0, axis=1).round(1)
+                                    fig = px.bar(gs_st, x="Viajante", y="Pct", color=grupo_col,
                                         color_discrete_sequence=px.colors.qualitative.Bold,
                                         barmode="stack", custom_data=[val_col])
                                     fig.update_traces(texttemplate="%{y:.1f}%", textposition="outside", textfont=dict(size=9),
@@ -931,21 +940,21 @@ with tabs[ti]:
 
                     st.markdown("</div>", unsafe_allow_html=True)
 
-                    # ── GRAFICOS POR SOLICITANTE ──
+                    # ── GRAFICOS POR VIAJANTE ──
                     if sk != "Reembolsos":
                         ped_col_st = next((c for c in df_st.columns if "pedido" in c.lower()), None)
-                        if ped_col_st and SOLICITANTE_MAP:
-                            df_st["Solicitante"] = df_st[ped_col_st].astype(str).str.strip().map(SOLICITANTE_MAP)
-                            if df_st["Solicitante"].notna().sum() > 0:
+                        if ped_col_st and VIAJANTE_REVERSE_MAP:
+                            df_st["Viajante"] = df_st[ped_col_st].astype(str).str.strip().map(VIAJANTE_REVERSE_MAP)
+                            if df_st["Viajante"].notna().sum() > 0:
                                 st.markdown('<div class="card">', unsafe_allow_html=True)
                                 if sk == "Adiantamentos":
                                     mot_col = next((c for c in df_st.columns if "motivo" in c.lower()), None)
                                     if mot_col:
-                                        st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total Solicitante X Motivo Viagem</h3>", unsafe_allow_html=True)
-                                        gs_st = df_st.groupby(["Solicitante", mot_col])[val_col].sum().reset_index()
-                                        sol_tot = gs_st.groupby("Solicitante")[val_col].sum()
-                                        gs_st["Pct"] = gs_st.apply(lambda r: r[val_col] / sol_tot[r["Solicitante"]] * 100 if sol_tot[r["Solicitante"]] > 0 else 0, axis=1).round(1)
-                                        fig = px.bar(gs_st, x="Solicitante", y="Pct", color=mot_col,
+                                        st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total Viajante X Motivo Viagem</h3>", unsafe_allow_html=True)
+                                        gs_st = df_st.groupby(["Viajante", mot_col])[val_col].sum().reset_index()
+                                        via_tot = gs_st.groupby("Viajante")[val_col].sum()
+                                        gs_st["Pct"] = gs_st.apply(lambda r: r[val_col] / via_tot[r["Viajante"]] * 100 if via_tot[r["Viajante"]] > 0 else 0, axis=1).round(1)
+                                        fig = px.bar(gs_st, x="Viajante", y="Pct", color=mot_col,
                                             color_discrete_sequence=px.colors.qualitative.Bold,
                                             barmode="stack", custom_data=[val_col])
                                         for i, tr in enumerate(fig.data):
@@ -958,14 +967,14 @@ with tabs[ti]:
                                             paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white",
                                             yaxis=dict(title="%", range=[0, 115]),
                                             legend=dict(orientation="v", y=1, x=1.02, font=dict(size=8)))
-                                        for sol in sol_tot.index:
-                                            fig.add_annotation(x=sol, y=106, text=f"R$ {sol_tot[sol]:,.0f}",
+                                        for via in via_tot.index:
+                                            fig.add_annotation(x=via, y=106, text=f"R$ {via_tot[via]:,.0f}",
                                                 showarrow=False, font=dict(size=9, color="#1a1a2e"))
                                         st.plotly_chart(fig, use_container_width=True, key=f"chart_{sk}_sol_motivo")
                                     else:
                                         st.caption("Sem coluna de motivo viagem.")
-                                    st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total por Solicitante</h3>", unsafe_allow_html=True)
-                                    stotal_st = df_st.groupby("Solicitante")[val_col].sum().sort_values(ascending=True)
+                                    st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total por Viajante</h3>", unsafe_allow_html=True)
+                                    stotal_st = df_st.groupby("Viajante")[val_col].sum().sort_values(ascending=True)
                                     fig = go.Figure(go.Bar(x=stotal_st.values, y=stotal_st.index, orientation="h",
                                         marker=dict(color=stotal_st.values, colorscale="Blues", line=dict(width=0)),
                                         text=stotal_st.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
@@ -1009,9 +1018,9 @@ with tabs[ti]:
                                         elif sk == "Transporte":
                                             tr_cia = next((c for c in df_st.columns if "cia" in c.lower() or "companhia" in c.lower()), None)
                                             if tr_cia:
-                                                st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Gastos: Solicitante x CIA</h3>", unsafe_allow_html=True)
-                                                gs_st = df_st.groupby(["Solicitante", tr_cia])[val_col].sum().reset_index()
-                                                fig = px.bar(gs_st, x="Solicitante", y=val_col, color=tr_cia,
+                                                st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Gastos: Viajante x CIA</h3>", unsafe_allow_html=True)
+                                                gs_st = df_st.groupby(["Viajante", tr_cia])[val_col].sum().reset_index()
+                                                fig = px.bar(gs_st, x="Viajante", y=val_col, color=tr_cia,
                                                     color_discrete_sequence=px.colors.qualitative.Bold,
                                                     text_auto=".2s", barmode="group")
                                                 fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=60),
@@ -1021,9 +1030,9 @@ with tabs[ti]:
                                             else:
                                                 st.caption("Sem coluna de CIA.")
                                         elif grupo_col:
-                                            st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Gastos: Solicitante x Categoria</h3>", unsafe_allow_html=True)
-                                            gs_st = df_st.groupby(["Solicitante", grupo_col])[val_col].sum().reset_index()
-                                            fig = px.bar(gs_st, x="Solicitante", y=val_col, color=grupo_col,
+                                            st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Gastos: Viajante x Categoria</h3>", unsafe_allow_html=True)
+                                            gs_st = df_st.groupby(["Viajante", grupo_col])[val_col].sum().reset_index()
+                                            fig = px.bar(gs_st, x="Viajante", y=val_col, color=grupo_col,
                                                 color_discrete_sequence=px.colors.qualitative.Bold,
                                                 text_auto=".2s", barmode="group")
                                             fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=60),
@@ -1033,8 +1042,8 @@ with tabs[ti]:
                                         else:
                                             st.caption("Sem coluna de categoria.")
                                     with gc2:
-                                        st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total por Solicitante</h3>", unsafe_allow_html=True)
-                                        stotal_st = df_st.groupby("Solicitante")[val_col].sum().sort_values(ascending=True)
+                                        st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total por Viajante</h3>", unsafe_allow_html=True)
+                                        stotal_st = df_st.groupby("Viajante")[val_col].sum().sort_values(ascending=True)
                                         fig = go.Figure(go.Bar(x=stotal_st.values, y=stotal_st.index, orientation="h",
                                             marker=dict(color=stotal_st.values, colorscale="Blues", line=dict(width=0)),
                                             text=stotal_st.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
