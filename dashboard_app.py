@@ -346,8 +346,8 @@ if df_viajantes is not None and not df_viajantes.empty:
 # ── VIAJANTE REVERSE MAP (pedido → viajante name) ──
 VIAJANTE_REVERSE_MAP = {}
 if VIAJ_PED and VIAJ_NOME and df_viajantes is not None and not df_viajantes.empty:
-    # Most pedidos have one traveler; use first for charts
-    VIAJANTE_REVERSE_MAP = df_viajantes.groupby(VIAJ_PED)[VIAJ_NOME].first().to_dict()
+    # Join multiple travelers with " + " for pedidos with more than one
+    VIAJANTE_REVERSE_MAP = df_viajantes.groupby(VIAJ_PED)[VIAJ_NOME].apply(lambda x: " + ".join(x.dropna().unique())).to_dict()
 # ── SIDEBAR FILTERS ──
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🔍 Filtros")
@@ -445,6 +445,11 @@ with c2:
 
 FILTERED_PEDIDOS = set(df_filt[COLS["PEDIDO"]].astype(str).str.strip()) if COLS["PEDIDO"] else set()
 
+if VIAJANTE_LIST and FILTERED_PEDIDOS:
+    QTDE_VIAJANTES = sum(1 for v in VIAJANTE_LIST if VIAJANTE_ORDER_MAP.get(v, set()) & FILTERED_PEDIDOS)
+else:
+    QTDE_VIAJANTES = len(VIAJANTE_LIST) if VIAJANTE_LIST else 0
+
 st.sidebar.markdown('<div style="background:#16233a; border:1px solid #253e81; border-radius:10px; padding:0.7rem 1rem; box-shadow:0 3px 0 #0f1a2e, 0 4px 12px rgba(37,62,129,0.25); margin-bottom:0.8rem;">'
     '<p style="margin:0; font-size:12px; font-style:italic; color:#ffd700; line-height:1.6;">'
     'Desenvolvido por <b>Rogerio Penha</b><br>'
@@ -459,7 +464,6 @@ st.sidebar.markdown("---")
 # ── MAIN KPIs ──
 total_gasto = df_filt[COLS["VALOR"]].sum() if COLS["VALOR"] else 0
 total_pedidos = len(df_filt)
-ticket_medio = total_gasto / total_pedidos if total_pedidos > 0 else 0
 
 st.markdown(f"""
 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
@@ -479,7 +483,7 @@ with k2:
     pct = pendentes / total_pedidos * 100 if total_pedidos > 0 else 0
     st.markdown(f"""<div class="kpi-card"><div class="label">📋 Total Pedidos</div><div class="value">{total_pedidos}</div><div class="sub">{pendentes} pendentes ({pct:.1f}%)</div></div>""", unsafe_allow_html=True)
 with k3:
-    st.markdown(f"""<div class="kpi-card"><div class="label">🎫 Ticket Médio</div><div class="value">R$ {ticket_medio:,.2f}</div><div class="sub">por pedido</div></div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div class="kpi-card"><div class="label">👤 Viajantes</div><div class="value">{QTDE_VIAJANTES}</div><div class="sub">viajantes distintos</div></div>""", unsafe_allow_html=True)
 with k4:
     cat_count = df_filt[COLS["STATUS"]].nunique() if COLS["STATUS"] else 0
     forn_count = df_filt[COLS["AGENCIA"]].nunique() if COLS["AGENCIA"] else 0
