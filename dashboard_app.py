@@ -297,8 +297,10 @@ COLS["AGENCIA"] = next((c for c in df_pedidos.columns if "agência" in c.lower()
 COLS["VIAJANTE"] = next((c for c in df_pedidos.columns if "viajante" in c.lower()), None)
 COLS["MOTIVO"] = next((c for c in df_pedidos.columns if "motivo" in c.lower()), None)
 COLS["DATA"] = next((c for c in df_pedidos.columns if "data" in c.lower() and "pedido" in c.lower()), None)
+if not COLS["DATA"]: COLS["DATA"] = next((c for c in df_pedidos.columns if "data" in c.lower() and "cota" in c.lower()), None)
 if not COLS["DATA"]: COLS["DATA"] = next((c for c in df_pedidos.columns if "data" in c.lower() and "emiss" in c.lower()), None)
 if not COLS["DATA"]: COLS["DATA"] = next((c for c in df_pedidos.columns if "data" in c.lower() and "cria" in c.lower()), None)
+if not COLS["DATA"]: COLS["DATA"] = next((c for c in df_pedidos.columns if "data" in c.lower()), None)
 COLS["TIPO"] = next((c for c in df_pedidos.columns if "tipo" in c.lower()), None)
 
 # Use sum of all sub-tabs + Reembolsos as the order value (ignore Total column)
@@ -339,7 +341,7 @@ if df_viajantes is not None and not df_viajantes.empty:
     VIAJ_PED = next((c for c in df_viajantes.columns if "pedido" in c.lower()), None)
     VIAJ_NOME = next((c for c in df_viajantes.columns if any(k in c.lower() for k in ["viajante", "passageiro", "colaborador", "nome", "solicitante"])), None)
     if VIAJ_PED and VIAJ_NOME:
-        df_viajantes[VIAJ_PED] = df_viajantes[VIAJ_PED].astype(str).str.strip()
+        df_viajantes[VIAJ_PED] = df_viajantes[VIAJ_PED].astype(str).str.strip().str.lstrip("0")
         df_viajantes[VIAJ_NOME] = df_viajantes[VIAJ_NOME].astype(str).str.strip()
         VIAJANTE_LIST = sorted(df_viajantes[VIAJ_NOME].dropna().unique())
         VIAJANTE_ORDER_MAP = df_viajantes.groupby(VIAJ_NOME)[VIAJ_PED].apply(set).to_dict()
@@ -422,7 +424,7 @@ if COLS["CCUSTO"]:
 
 if VIAJANTE_LIST:
     if COLS["PEDIDO"]:
-        filt_pedidos_set = set(df_filt[COLS["PEDIDO"]].astype(str).str.strip())
+        filt_pedidos_set = set(df_filt[COLS["PEDIDO"]].astype(str).str.strip().str.lstrip("0"))
         viajantes_contextuais = sorted(
             v for v in VIAJANTE_LIST
             if any(p in filt_pedidos_set for p in VIAJANTE_ORDER_MAP.get(v, set()))
@@ -435,7 +437,7 @@ if VIAJANTE_LIST:
         for v in sel_viajantes:
             viajante_pedidos.update(VIAJANTE_ORDER_MAP.get(v, set()))
         if viajante_pedidos and COLS["PEDIDO"]:
-            df_filt = df_filt[df_filt[COLS["PEDIDO"]].astype(str).str.strip().isin(viajante_pedidos)]
+            df_filt = df_filt[df_filt[COLS["PEDIDO"]].astype(str).str.strip().str.lstrip("0").isin(viajante_pedidos)]
             filtros_aplicados += 1
 
 if COLS["EMPRESA"]:
@@ -453,7 +455,7 @@ with c2:
     if filtros_aplicados > 0 and st.button("Limpar"):
         st.rerun()
 
-FILTERED_PEDIDOS = set(df_filt[COLS["PEDIDO"]].astype(str).str.strip()) if COLS["PEDIDO"] else set()
+FILTERED_PEDIDOS = set(df_filt[COLS["PEDIDO"]].astype(str).str.strip().str.lstrip("0")) if COLS["PEDIDO"] else set()
 
 if VIAJANTE_LIST and FILTERED_PEDIDOS:
     QTDE_VIAJANTES = sum(1 for v in VIAJANTE_LIST if VIAJANTE_ORDER_MAP.get(v, set()) & FILTERED_PEDIDOS)
@@ -591,7 +593,7 @@ if COLS["STATUS"]:
 if VIAJANTE_REVERSE_MAP and COLS["PEDIDO"]:
     with tabs[ti]:
         df_filt_via = df_filt.copy()
-        df_filt_via["Viajante"] = df_filt_via[COLS["PEDIDO"]].astype(str).str.strip().map(VIAJANTE_REVERSE_MAP)
+        df_filt_via["Viajante"] = df_filt_via[COLS["PEDIDO"]].astype(str).str.strip().str.lstrip("0").map(VIAJANTE_REVERSE_MAP)
         df_filt_via = df_filt_via.dropna(subset=["Viajante"])
         c1, c2 = st.columns([1, 1])
         with c1:
@@ -694,7 +696,7 @@ with tabs[ti]:
                     if df_ed is not None and not df_ed.empty:
                         _ed_ped_col = next((c for c in df_ed.columns if "pedido" in c.lower()), None)
                         if _ed_ped_col and FILTERED_PEDIDOS:
-                            df_ed = df_ed[df_ed[_ed_ped_col].astype(str).str.strip().isin(FILTERED_PEDIDOS)]
+                            df_ed = df_ed[df_ed[_ed_ped_col].astype(str).str.strip().str.lstrip("0").isin(FILTERED_PEDIDOS)]
                         _ed_data_col = next((c for c in df_ed.columns if any(k in c.lower() for k in ["data", "cotacao", "emissao", "viagem", "check"])), None)
                         if data_ok and _ed_data_col:
                             try:
@@ -772,7 +774,7 @@ with tabs[ti]:
 
                     _st_ped_col = next((c for c in df_st.columns if "pedido" in c.lower()), None)
                     if _st_ped_col and FILTERED_PEDIDOS:
-                        df_st = df_st[df_st[_st_ped_col].astype(str).str.strip().isin(FILTERED_PEDIDOS)]
+                        df_st = df_st[df_st[_st_ped_col].astype(str).str.strip().str.lstrip("0").isin(FILTERED_PEDIDOS)]
                     # Apply date filter directly to subtab data
                     _st_data_col = next((c for c in df_st.columns if any(k in c.lower() for k in ["data", "cotacao", "emissao", "viagem", "check"])), None)
                     if data_ok and _st_data_col:
@@ -874,7 +876,7 @@ with tabs[ti]:
                                 with r1c2:
                                     ped_col_st = next((c for c in df_st.columns if "pedido" in c.lower()), None)
                                     if ped_col_st and VIAJANTE_REVERSE_MAP:
-                                        df_st["Viajante"] = df_st[ped_col_st].astype(str).str.strip().map(VIAJANTE_REVERSE_MAP)
+                                        df_st["Viajante"] = df_st[ped_col_st].astype(str).str.strip().str.lstrip("0").map(VIAJANTE_REVERSE_MAP)
                                     if "Viajante" in df_st.columns and df_st["Viajante"].notna().sum() > 0:
                                         st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total por Viajante <span style='font-size:10px; font-style:italic; color:#8899b8;'>(20 maiores gastos)</span></h3>", unsafe_allow_html=True)
                                         stotal_st = df_st.groupby("Viajante")[val_col].sum().sort_values(ascending=False).head(20).sort_values(ascending=True)
@@ -977,7 +979,7 @@ with tabs[ti]:
                     if sk != "Reembolsos":
                         ped_col_st = next((c for c in df_st.columns if "pedido" in c.lower()), None)
                         if ped_col_st and VIAJANTE_REVERSE_MAP:
-                            df_st["Viajante"] = df_st[ped_col_st].astype(str).str.strip().map(VIAJANTE_REVERSE_MAP)
+                            df_st["Viajante"] = df_st[ped_col_st].astype(str).str.strip().str.lstrip("0").map(VIAJANTE_REVERSE_MAP)
                             if df_st["Viajante"].notna().sum() > 0:
                                 st.markdown('<div class="card">', unsafe_allow_html=True)
                                 if sk == "Adiantamentos":
