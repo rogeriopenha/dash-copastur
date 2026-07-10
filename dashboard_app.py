@@ -398,28 +398,36 @@ if busca_pedido:
                 st.sidebar.caption(f"Exemplo: {ped_str.iloc[0] if len(ped_str) > 0 else 'sem dados'}")
 
 if COLS["STATUS"]:
-    opts = sorted(df_pedidos[COLS["STATUS"]].dropna().unique())
+    opts = sorted(df_filt[COLS["STATUS"]].dropna().unique())
     sel = st.sidebar.multiselect("Status", opts, default=opts)
     if sel and len(sel) < len(opts):
         df_filt = df_filt[df_filt[COLS["STATUS"]].isin(sel)]
         filtros_aplicados += 1
 
 if COLS["SOLICITANTE"]:
-    opts = sorted(df_pedidos[COLS["SOLICITANTE"]].dropna().unique())
+    opts = sorted(df_filt[COLS["SOLICITANTE"]].dropna().unique())
     sel = st.sidebar.multiselect("Solicitante", opts, default=[])
     if sel:
         df_filt = df_filt[df_filt[COLS["SOLICITANTE"]].isin(sel)]
         filtros_aplicados += 1
 
 if COLS["CCUSTO"]:
-    opts = sorted(df_pedidos[COLS["CCUSTO"]].dropna().unique())
+    opts = sorted(df_filt[COLS["CCUSTO"]].dropna().unique())
     sel = st.sidebar.multiselect("Centro de Custo", opts, default=[])
     if sel:
         df_filt = df_filt[df_filt[COLS["CCUSTO"]].isin(sel)]
         filtros_aplicados += 1
 
 if VIAJANTE_LIST:
-    sel_viajantes = st.sidebar.multiselect("Viajante", VIAJANTE_LIST, default=[])
+    if COLS["PEDIDO"]:
+        filt_pedidos_set = set(df_filt[COLS["PEDIDO"]].astype(str).str.strip())
+        viajantes_contextuais = sorted(
+            v for v in VIAJANTE_LIST
+            if any(p in filt_pedidos_set for p in VIAJANTE_ORDER_MAP.get(v, set()))
+        )
+    else:
+        viajantes_contextuais = VIAJANTE_LIST
+    sel_viajantes = st.sidebar.multiselect("Viajante", viajantes_contextuais, default=[])
     if sel_viajantes:
         viajante_pedidos = set()
         for v in sel_viajantes:
@@ -429,7 +437,7 @@ if VIAJANTE_LIST:
             filtros_aplicados += 1
 
 if COLS["EMPRESA"]:
-    opts = sorted(df_pedidos[COLS["EMPRESA"]].dropna().unique())
+    opts = sorted(df_filt[COLS["EMPRESA"]].dropna().unique())
     sel = st.sidebar.multiselect("Empresa", opts, default=[])
     if sel:
         df_filt = df_filt[df_filt[COLS["EMPRESA"]].isin(sel)]
@@ -685,6 +693,15 @@ with tabs[ti]:
                         _ed_ped_col = next((c for c in df_ed.columns if "pedido" in c.lower()), None)
                         if _ed_ped_col and FILTERED_PEDIDOS:
                             df_ed = df_ed[df_ed[_ed_ped_col].astype(str).str.strip().isin(FILTERED_PEDIDOS)]
+                        _ed_data_col = next((c for c in df_ed.columns if any(k in c.lower() for k in ["data", "cotacao", "emissao", "viagem", "check"])), None)
+                        if data_ok and _ed_data_col:
+                            try:
+                                df_ed[_ed_data_col] = pd.to_datetime(df_ed[_ed_data_col], errors="coerce", dayfirst=True)
+                                _ed_date_mask = (df_ed[_ed_data_col].dt.date >= start_date) & (df_ed[_ed_data_col].dt.date <= end_date)
+                                _ed_nat_mask = df_ed[_ed_data_col].isna()
+                                df_ed = df_ed[_ed_date_mask | _ed_nat_mask]
+                            except:
+                                pass
                         st.caption(f"{len(df_ed)} registros • {len(df_ed.columns)} colunas")
                         search_ed = st.text_input("🔎 Buscar", placeholder="Digite para filtrar...", key=f"ed_search_{ek}")
                         df_ed_disp = df_ed.copy()
@@ -754,6 +771,16 @@ with tabs[ti]:
                     _st_ped_col = next((c for c in df_st.columns if "pedido" in c.lower()), None)
                     if _st_ped_col and FILTERED_PEDIDOS:
                         df_st = df_st[df_st[_st_ped_col].astype(str).str.strip().isin(FILTERED_PEDIDOS)]
+                    # Apply date filter directly to subtab data
+                    _st_data_col = next((c for c in df_st.columns if any(k in c.lower() for k in ["data", "cotacao", "emissao", "viagem", "check"])), None)
+                    if data_ok and _st_data_col:
+                        try:
+                            df_st[_st_data_col] = pd.to_datetime(df_st[_st_data_col], errors="coerce", dayfirst=True)
+                            _st_date_mask = (df_st[_st_data_col].dt.date >= start_date) & (df_st[_st_data_col].dt.date <= end_date)
+                            _st_nat_mask = df_st[_st_data_col].isna()
+                            df_st = df_st[_st_date_mask | _st_nat_mask]
+                        except:
+                            pass
 
                     total_val = df_st[val_col].sum()
                     count_records = len(df_st)
