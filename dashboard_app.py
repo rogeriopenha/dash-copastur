@@ -891,7 +891,7 @@ with tabs[ti]:
                                     st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Gastos: Viajante x Categoria</h3>", unsafe_allow_html=True)
                                     gs_st = df_st.groupby(["Viajante", grupo_col])[val_col].sum().reset_index()
                                     via_tot = gs_st.groupby("Viajante")[val_col].sum()
-                                    gs_st["Pct"] = gs_st.apply(lambda r: r[val_col] / via_tot[r["Viajante"]] * 100 if via_tot[r["Viajante"]] > 0 else 0, axis=1).round(1)
+                                    gs_st["Pct"] = gs_st.apply(lambda r: r[val_col] / via_tot.get(r["Viajante"], 1) * 100 if via_tot.get(r["Viajante"], 0) > 0 else 0, axis=1).round(1)
                                     fig = px.bar(gs_st, x="Viajante", y="Pct", color=grupo_col,
                                         color_discrete_sequence=px.colors.qualitative.Bold,
                                         barmode="stack", custom_data=[val_col])
@@ -986,7 +986,7 @@ with tabs[ti]:
                                         st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total Viajante X Motivo Viagem</h3>", unsafe_allow_html=True)
                                         gs_st = df_st.groupby(["Viajante", mot_col])[val_col].sum().reset_index()
                                         via_tot = gs_st.groupby("Viajante")[val_col].sum()
-                                        gs_st["Pct"] = gs_st.apply(lambda r: r[val_col] / via_tot[r["Viajante"]] * 100 if via_tot[r["Viajante"]] > 0 else 0, axis=1).round(1)
+                                        gs_st["Pct"] = gs_st.apply(lambda r: r[val_col] / via_tot.get(r["Viajante"], 1) * 100 if via_tot.get(r["Viajante"], 0) > 0 else 0, axis=1).round(1)
                                         fig = px.bar(gs_st, x="Viajante", y="Pct", color=mot_col,
                                             color_discrete_sequence=px.colors.qualitative.Bold,
                                             barmode="stack", custom_data=[val_col])
