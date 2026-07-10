@@ -296,33 +296,41 @@ COLS["EMPRESA"] = next((c for c in df_pedidos.columns if "empresa" in c.lower() 
 COLS["AGENCIA"] = next((c for c in df_pedidos.columns if "agência" in c.lower() or "agencia" in c.lower()), None)
 COLS["VIAJANTE"] = next((c for c in df_pedidos.columns if "viajante" in c.lower()), None)
 COLS["MOTIVO"] = next((c for c in df_pedidos.columns if "motivo" in c.lower()), None)
-# Smart date column detection: try patterns in priority, validate by parsing
-_COLS_DATA_CANDIDATES = []
-for _pat in [
-    lambda c: "data" in c.lower() and "cota" in c.lower(),
-    lambda c: "data" in c.lower() and "pedido" in c.lower(),
+# ── DATE COLUMN DETECTION ──
+# Priority-based name matching, then brute-force scan ALL columns
+COLS["DATA"] = None
+_COLS_DATA_PRIORITY = [
+    lambda c: "cota" in c.lower() and "data" in c.lower(),
+    lambda c: "pedido" in c.lower() and "data" in c.lower(),
     lambda c: "data" in c.lower() and "emiss" in c.lower(),
     lambda c: "data" in c.lower() and "cria" in c.lower(),
-]:
-    _cand = [c for c in df_pedidos.columns if _pat(c)]
-    if _cand:
-        _COLS_DATA_CANDIDATES.append(_cand[0])
-# fallback: any column with "data" in name, then any with "dt"/"data"
-if not _COLS_DATA_CANDIDATES:
-    _data_cols = [c for c in df_pedidos.columns if "data" in c.lower()]
-    if not _data_cols:
-        _data_cols = [c for c in df_pedidos.columns if c.lower().startswith("dt")]
-    _COLS_DATA_CANDIDATES = _data_cols
-COLS["DATA"] = None
-for _candidate in _COLS_DATA_CANDIDATES:
-    try:
-        _test = pd.to_datetime(df_pedidos[_candidate], errors="coerce", dayfirst=True)
-        if _test.notna().sum() > 0:
-            COLS["DATA"] = _candidate
-            df_pedidos[_candidate] = _test
-            break
-    except Exception:
-        continue
+    lambda c: "data" in c.lower(),
+    lambda c: c.lower().startswith("dt"),
+]
+for _fn in _COLS_DATA_PRIORITY:
+    _cands = [c for c in df_pedidos.columns if _fn(c)]
+    for _c in _cands:
+        try:
+            _t = pd.to_datetime(df_pedidos[_c], errors="coerce", dayfirst=True)
+            if _t.notna().sum() > 0:
+                COLS["DATA"] = _c
+                df_pedidos[_c] = _t
+                break
+        except:
+            continue
+    if COLS["DATA"]:
+        break
+# Brute-force fallback: try every column, pick first with >30% valid dates
+if COLS["DATA"] is None:
+    for _c in df_pedidos.columns:
+        try:
+            _t = pd.to_datetime(df_pedidos[_c], errors="coerce", dayfirst=True)
+            if _t.notna().sum() > len(df_pedidos) * 0.3:
+                COLS["DATA"] = _c
+                df_pedidos[_c] = _t
+                break
+        except:
+            continue
 COLS["TIPO"] = next((c for c in df_pedidos.columns if "tipo" in c.lower()), None)
 
 # Use sum of all sub-tabs + Reembolsos as the order value (ignore Total column)
