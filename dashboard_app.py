@@ -182,6 +182,7 @@ def load_gsheets_tab(creds_dict, sheet_url, tab_name):
     ws = sheet.worksheet(tab_name)
     return df_from_ws(ws)
 
+@st.cache_data(ttl=300)
 def compute_subtotais(df_pedidos, creds_dict, sheet_url):
     sheet = gsheet_connect(creds_dict, sheet_url)
     ped_id = next(c for c in df_pedidos.columns if "pedido" in c.lower() and "root" not in c.lower())
@@ -203,6 +204,7 @@ def compute_subtotais(df_pedidos, creds_dict, sheet_url):
             lookup = df_tab.groupby(t_ped)[t_val].sum()
             mapped = ped_vals.map(lookup).fillna(0.0)
             total_calc = total_calc + mapped
+            time.sleep(0.5)
         except Exception:
             continue
 
