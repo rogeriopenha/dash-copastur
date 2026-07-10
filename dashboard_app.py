@@ -222,6 +222,15 @@ def load_reembolsos_gsheets(json_key_file, sheet_url):
     return df_from_ws(ws)
 
 @st.cache_data(ttl=300)
+def load_viajantes_gsheets(json_key_file, sheet_url):
+    try:
+        sheet = gsheet_connect(json_key_file, sheet_url)
+        ws = sheet.worksheet("Viajantes")
+        return df_from_ws(ws)
+    except:
+        return pd.DataFrame()
+
+@st.cache_data(ttl=300)
 def load_subtab(tab_name, creds_json, sheet_url):
     return load_gsheets_tab(creds_json, sheet_url, tab_name)
 
@@ -232,6 +241,7 @@ if CLOUD_MODE:
             js = json.dumps(GCP_JSON_SECRET) if not isinstance(GCP_JSON_SECRET, str) else GCP_JSON_SECRET
             df_pedidos = load_pedidos_gsheets(js, SHEET_URL_SECRET)
             df_reemb = load_reembolsos_gsheets(js, SHEET_URL_SECRET)
+            df_viajantes = load_viajantes_gsheets(js, SHEET_URL_SECRET)
             # Compute real totals from sub-tabs (Aereos, Hoteis, Carros, Servicos)
             with st.spinner("Calculando totais reais..."):
                 df_pedidos["total_calculado"] = compute_subtotais(df_pedidos, js, SHEET_URL_SECRET)
@@ -245,15 +255,18 @@ else:
     if "df_loaded" in st.session_state and st.session_state.df_loaded is not None:
         df_pedidos = st.session_state.df_loaded
         df_reemb = st.session_state.get("df_reemb")
+        df_viajantes = st.session_state.get("df_viajantes", pd.DataFrame())
     elif conectar and json_key and sheet_url:
         with st.spinner("Carregando..."):
             try:
                 jk = json_key.read()
                 df_pedidos = load_pedidos_gsheets(jk, sheet_url)
                 df_reemb = load_reembolsos_gsheets(jk, sheet_url)
+                df_viajantes = load_viajantes_gsheets(jk, sheet_url)
                 df_pedidos["total_calculado"] = compute_subtotais(df_pedidos, jk, sheet_url)
                 st.session_state.df_loaded = df_pedidos
                 st.session_state.df_reemb = df_reemb
+                st.session_state.df_viajantes = df_viajantes
                 st.session_state._creds = jk
                 st.session_state._sheet_url = sheet_url
                 st.sidebar.success(f"✅ {len(df_pedidos)} registros")
@@ -314,6 +327,20 @@ if df_reemb is not None and not df_reemb.empty:
 SOLICITANTE_MAP = {}
 if COLS["PEDIDO"] and COLS["SOLICITANTE"]:
     SOLICITANTE_MAP = dict(zip(df_pedidos[COLS["PEDIDO"]].astype(str).str.strip(), df_pedidos[COLS["SOLICITANTE"]]))
+
+# ── VIAJANTES LOOKUP ──
+VIAJANTE_ORDER_MAP = {}
+VIAJANTE_LIST = []
+VIAJ_PED = None
+VIAJ_NOME = None
+if df_viajantes is not None and not df_viajantes.empty:
+    VIAJ_PED = next((c for c in df_viajantes.columns if "pedido" in c.lower()), None)
+    VIAJ_NOME = next((c for c in df_viajantes.columns if any(k in c.lower() for k in ["viajante", "passageiro", "colaborador", "nome", "solicitante"])), None)
+    if VIAJ_PED and VIAJ_NOME:
+        df_viajantes[VIAJ_PED] = df_viajantes[VIAJ_PED].astype(str).str.strip()
+        df_viajantes[VIAJ_NOME] = df_viajantes[VIAJ_NOME].astype(str).str.strip()
+        VIAJANTE_LIST = sorted(df_viajantes[VIAJ_NOME].dropna().unique())
+        VIAJANTE_ORDER_MAP = df_viajantes.groupby(VIAJ_NOME)[VIAJ_PED].apply(set).to_dict()
 
 # ── SIDEBAR FILTERS ──
 st.sidebar.markdown("---")
@@ -384,6 +411,16 @@ if COLS["CCUSTO"]:
     if sel:
         df_filt = df_filt[df_filt[COLS["CCUSTO"]].isin(sel)]
         filtros_aplicados += 1
+
+if VIAJANTE_LIST:
+    sel_viajantes = st.sidebar.multiselect("Viajante", VIAJANTE_LIST, default=[])
+    if sel_viajantes:
+        viajante_pedidos = set()
+        for v in sel_viajantes:
+            viajante_pedidos.update(VIAJANTE_ORDER_MAP.get(v, set()))
+        if viajante_pedidos and COLS["PEDIDO"]:
+            df_filt = df_filt[df_filt[COLS["PEDIDO"]].astype(str).str.strip().isin(viajante_pedidos)]
+            filtros_aplicados += 1
 
 if COLS["EMPRESA"]:
     opts = sorted(df_pedidos[COLS["EMPRESA"]].dropna().unique())
@@ -469,7 +506,7 @@ with tabs[ti]:
             fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10),
                 paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
             fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="chart_gastos_ccusto")
         st.markdown("</div>", unsafe_allow_html=True)
     with c2:
         st.markdown('<div class="card">', unsafe_allow_html=True)
@@ -480,7 +517,7 @@ with tabs[ti]:
                 marker=dict(colors=px.colors.sequential.Blues[::-1][:len(ec)]),
                 textinfo="label+percent", textposition="outside", showlegend=False)])
             fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="chart_dist_empresa")
         st.markdown("</div>", unsafe_allow_html=True)
     c1, c2 = st.columns([1, 1])
     with c1:
@@ -492,7 +529,7 @@ with tabs[ti]:
             fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
             fig.update_coloraxes(showscale=False)
             fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="chart_top_agencias")
         st.markdown("</div>", unsafe_allow_html=True)
     with c2:
         st.markdown('<div class="card">', unsafe_allow_html=True)
@@ -503,7 +540,7 @@ with tabs[ti]:
             fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
             fig.update_coloraxes(showscale=False)
             fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="chart_motivos_viagem")
         st.markdown("</div>", unsafe_allow_html=True)
     ti += 1
 
@@ -518,7 +555,7 @@ if COLS["STATUS"]:
                 marker=dict(colors=px.colors.sequential.Blues[::-1][:len(sc)]),
                 textinfo="label+percent", textposition="outside", showlegend=False)])
             fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="chart_status_pie")
         with c2:
             if COLS["VALOR"]:
                 sp = df_filt.groupby(COLS["STATUS"]).agg(
@@ -544,7 +581,7 @@ if COLS["SOLICITANTE"]:
                     text=g.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
                 fig.update_layout(height=500, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
                 fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key="chart_ranking_solicitante")
             st.markdown("</div>", unsafe_allow_html=True)
         with c2:
             st.markdown('<div class="card">', unsafe_allow_html=True)
@@ -555,7 +592,7 @@ if COLS["SOLICITANTE"]:
                 text=sc.values, textposition="outside"))
             fig.update_layout(height=500, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
             fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="chart_volume_pedidos")
             st.markdown("</div>", unsafe_allow_html=True)
         ti += 1
 
@@ -573,7 +610,7 @@ if data_ok:
                 fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(title=None), yaxis=dict(title="R$"))
                 fig.update_yaxes(tickprefix="R$ ")
                 fig.update_traces(hovertemplate="R$ %{y:,.2f}<extra></extra>")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key="chart_gastos_tempo")
             st.markdown("</div>", unsafe_allow_html=True)
         with c2:
             st.markdown('<div class="card">', unsafe_allow_html=True)
@@ -582,7 +619,7 @@ if data_ok:
             fig = px.bar(ct, x=data_col, y=COLS["PEDIDO"] or df_filt.columns[0], color_discrete_sequence=["#2e86c1"])
             fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(title=None), yaxis=dict(title="Pedidos"))
             fig.update_traces(hovertemplate="%{y}<extra></extra>")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="chart_pedidos_mes")
             st.markdown("</div>", unsafe_allow_html=True)
         ti += 1
 
@@ -734,7 +771,7 @@ with tabs[ti]:
                                 fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10),
                                     paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
                                 fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
-                                st.plotly_chart(fig, use_container_width=True)
+                                st.plotly_chart(fig, use_container_width=True, key=f"chart_{sk}_total_motivo")
                             with ca2:
                                 st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Distribuição por Motivo de Viagem</h3>", unsafe_allow_html=True)
                                 gc = df_st[mot_col].value_counts()
@@ -743,7 +780,7 @@ with tabs[ti]:
                                     textinfo="label+percent", textposition="outside", showlegend=False,
                                     textfont=dict(size=10))])
                                 fig.update_layout(height=350, margin=dict(l=60, r=60, t=20, b=60), paper_bgcolor="white", font=dict(color="#1a1a2e"))
-                                st.plotly_chart(fig, use_container_width=True)
+                                st.plotly_chart(fig, use_container_width=True, key=f"chart_{sk}_dist_motivo")
                         else:
                             st.caption("Sem coluna de motivo viagem.")
                     elif grupo_col:
@@ -760,7 +797,7 @@ with tabs[ti]:
                                     fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10),
                                         paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
                                     fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
-                                    st.plotly_chart(fig, use_container_width=True)
+                                    st.plotly_chart(fig, use_container_width=True, key=f"chart_{sk}_total_cia")
                                 else:
                                     st.caption("Sem coluna de CIA.")
                             with ct2:
@@ -776,7 +813,7 @@ with tabs[ti]:
                                     fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10),
                                         paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
                                     fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
-                                    st.plotly_chart(fig, use_container_width=True)
+                                    st.plotly_chart(fig, use_container_width=True, key=f"chart_{sk}_total_terminal")
                                 else:
                                     st.caption("Sem coluna de terminal/destino.")
                         else:
@@ -791,7 +828,7 @@ with tabs[ti]:
                                     fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10),
                                         paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
                                     fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
-                                    st.plotly_chart(fig, use_container_width=True)
+                                    st.plotly_chart(fig, use_container_width=True, key=f"chart_{sk}_total_despesa")
                                 with r1c2:
                                     ped_col_st = next((c for c in df_st.columns if "pedido" in c.lower()), None)
                                     if ped_col_st and SOLICITANTE_MAP:
@@ -805,7 +842,7 @@ with tabs[ti]:
                                         fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10),
                                             paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
                                         fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
-                                        st.plotly_chart(fig, use_container_width=True)
+                                        st.plotly_chart(fig, use_container_width=True, key=f"chart_{sk}_total_solicitante")
                                     else:
                                         st.caption("Sem solicitante para esta despesa.")
                                 if "Solicitante" in df_st.columns and df_st["Solicitante"].notna().sum() > 0:
@@ -822,7 +859,7 @@ with tabs[ti]:
                                         paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white",
                                         yaxis=dict(title="%", range=[0, 115]),
                                         legend=dict(orientation="v", y=1, x=1.02, font=dict(size=8)))
-                                    st.plotly_chart(fig, use_container_width=True)
+                                    st.plotly_chart(fig, use_container_width=True, key=f"chart_{sk}_sol_categoria")
                                 st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Distribuição por Despesa</h3>", unsafe_allow_html=True)
                                 gc_val = df_st.groupby(grupo_col)[val_col].sum().sort_values(ascending=False)
                                 fig = go.Figure(go.Bar(x=gc_val.index, y=gc_val.values,
@@ -831,7 +868,7 @@ with tabs[ti]:
                                 fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10),
                                     paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(title=None), yaxis=dict(title="R$"))
                                 fig.update_traces(hovertemplate="R$ %{y:,.2f}<extra></extra>")
-                                st.plotly_chart(fig, use_container_width=True)
+                                st.plotly_chart(fig, use_container_width=True, key=f"chart_{sk}_dist_despesa")
                                 desp_col = next((c for c in df_st.columns if "descri" in c.lower()), None)
                                 if desp_col and grupo_col:
                                     st.subheader("Subcategorias")
@@ -851,7 +888,7 @@ with tabs[ti]:
                                             sub_fig.update_layout(height=200, margin=dict(l=10, r=10, t=5, b=5),
                                                 paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
                                             sub_fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
-                                            st.plotly_chart(sub_fig, use_container_width=True)
+                                            st.plotly_chart(sub_fig, use_container_width=True, key=f"chart_{sk}_subcat_{idx}")
                             else:
                                 c1, c2 = st.columns([1, 1])
                                 with c1:
@@ -863,7 +900,7 @@ with tabs[ti]:
                                     fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10),
                                         paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
                                     fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
-                                    st.plotly_chart(fig, use_container_width=True)
+                                    st.plotly_chart(fig, use_container_width=True, key=f"chart_{sk}_total_grupo")
                                 with c2:
                                     st.subheader(f"Distribuição por {grupo_col}")
                                     gc = df_st[grupo_col].value_counts()
@@ -871,7 +908,7 @@ with tabs[ti]:
                                         marker=dict(colors=px.colors.sequential.Blues[::-1][:len(gc)]),
                                         textinfo="label+percent", textposition="outside", showlegend=False)])
                                     fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"))
-                                    st.plotly_chart(fig, use_container_width=True)
+                                    st.plotly_chart(fig, use_container_width=True, key=f"chart_{sk}_dist_grupo")
                                 desp_col = next((c for c in df_st.columns if "descri" in c.lower()), None)
                                 if desp_col and grupo_col:
                                     st.subheader("Subcategorias")
@@ -890,7 +927,7 @@ with tabs[ti]:
                                             sub_fig.update_layout(height=200, margin=dict(l=10, r=10, t=5, b=5),
                                                 paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
                                             sub_fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
-                                            st.plotly_chart(sub_fig, use_container_width=True)
+                                            st.plotly_chart(sub_fig, use_container_width=True, key=f"chart_{sk}_subcat2_{idx}")
 
                     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -924,7 +961,7 @@ with tabs[ti]:
                                         for sol in sol_tot.index:
                                             fig.add_annotation(x=sol, y=106, text=f"R$ {sol_tot[sol]:,.0f}",
                                                 showarrow=False, font=dict(size=9, color="#1a1a2e"))
-                                        st.plotly_chart(fig, use_container_width=True)
+                                        st.plotly_chart(fig, use_container_width=True, key=f"chart_{sk}_sol_motivo")
                                     else:
                                         st.caption("Sem coluna de motivo viagem.")
                                     st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total por Solicitante</h3>", unsafe_allow_html=True)
@@ -935,7 +972,7 @@ with tabs[ti]:
                                     fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10),
                                         paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
                                     fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
-                                    st.plotly_chart(fig, use_container_width=True)
+                                    st.plotly_chart(fig, use_container_width=True, key=f"chart_{sk}_total_solicitante2")
                                 else:
                                     gc1, gc2 = st.columns([1, 1])
                                     with gc1:
@@ -952,7 +989,7 @@ with tabs[ti]:
                                                 fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10),
                                                     paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
                                                 fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
-                                                st.plotly_chart(fig, use_container_width=True)
+                                                st.plotly_chart(fig, use_container_width=True, key=f"chart_{sk}_total_trecho")
                                             else:
                                                 st.caption("Sem colunas de origem/destino.")
                                         elif sk == "Hoteis":
@@ -966,7 +1003,7 @@ with tabs[ti]:
                                                 fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10),
                                                     paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
                                                 fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
-                                                st.plotly_chart(fig, use_container_width=True)
+                                                st.plotly_chart(fig, use_container_width=True, key=f"chart_{sk}_total_cidade")
                                             else:
                                                 st.caption("Sem coluna de cidade.")
                                         elif sk == "Transporte":
@@ -980,7 +1017,7 @@ with tabs[ti]:
                                                 fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=60),
                                                     paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(title=None))
                                                 fig.update_traces(hovertemplate="R$ %{y:,.2f}<extra></extra>")
-                                                st.plotly_chart(fig, use_container_width=True)
+                                                st.plotly_chart(fig, use_container_width=True, key=f"chart_{sk}_sol_cia")
                                             else:
                                                 st.caption("Sem coluna de CIA.")
                                         elif grupo_col:
@@ -992,7 +1029,7 @@ with tabs[ti]:
                                             fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=60),
                                                 paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(title=None))
                                             fig.update_traces(hovertemplate="R$ %{y:,.2f}<extra></extra>")
-                                            st.plotly_chart(fig, use_container_width=True)
+                                            st.plotly_chart(fig, use_container_width=True, key=f"chart_{sk}_sol_categoria2")
                                         else:
                                             st.caption("Sem coluna de categoria.")
                                     with gc2:
@@ -1004,7 +1041,7 @@ with tabs[ti]:
                                         fig.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10),
                                             paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
                                         fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
-                                        st.plotly_chart(fig, use_container_width=True)
+                                        st.plotly_chart(fig, use_container_width=True, key=f"chart_{sk}_total_solicitante3")
                                 st.markdown("</div>", unsafe_allow_html=True)
 
                     st.markdown('<div class="card">', unsafe_allow_html=True)
