@@ -616,10 +616,10 @@ with tabs[ti]:
         st.subheader("Motivos de Viagem")
         if COLS["MOTIVO"]:
             mc = df_filt[COLS["MOTIVO"]].value_counts().head(10)
-            fig = px.bar(mc, x=mc.values, y=mc.index, orientation="h", color=mc.values, color_continuous_scale="Teal")
+            fig = px.bar(mc, x=mc.values, y=mc.index, orientation="h", color=mc.values, color_continuous_scale="Teal", text_auto=".0f")
             fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
             fig.update_coloraxes(showscale=False)
-            fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
+            fig.update_traces(hovertemplate="%{x}<extra></extra>")
             st.plotly_chart(fig, use_container_width=True, key="chart_motivos_viagem")
         st.markdown("</div>", unsafe_allow_html=True)
     ti += 1
