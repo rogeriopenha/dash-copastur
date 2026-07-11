@@ -875,9 +875,10 @@ with tabs[ti]:
                     avg_val = total_val / count_records if count_records > 0 else 0
                     nonzero = (df_st[val_col] > 0).sum()
 
-                    st.caption(f"{count_records} {'vôos' if sk == 'Aereos' else 'registros'} • R$ {total_val:,.2f} total • {nonzero} com valor")
+                    _rec_plural = {"Aereos": "vôos", "Hoteis": "reservas", "Carros": "reservas", "Adiantamentos": "adiantamentos", "Reembolsos": "reembolsos"}.get(sk, "registros")
+                    st.caption(f"{count_records} {_rec_plural} • R$ {total_val:,.2f} total • {nonzero} com valor")
 
-                    _rec_label = "Qtde de Vôos" if sk == "Aereos" else "📝 Registros"
+                    _rec_label = {"Aereos": "Qtde de Vôos", "Hoteis": "Qtde de Reservas", "Carros": "Qtde de Reservas", "Adiantamentos": "Qtde de Adiantamentos", "Reembolsos": "Qtde de Reembolsos"}.get(sk, "📝 Registros")
                     d1, d2, d3, d4 = st.columns(4)
                     d1.markdown(f"""<div class="kpi-card"><div class="label">💰 Total {sk}</div><div class="value">R$ {total_val:,.2f}</div></div>""", unsafe_allow_html=True)
                     d2.markdown(f"""<div class="kpi-card"><div class="label">{_rec_label}</div><div class="value">{count_records}</div></div>""", unsafe_allow_html=True)
