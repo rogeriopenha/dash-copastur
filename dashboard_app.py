@@ -298,15 +298,25 @@ COLS["VIAJANTE"] = next((c for c in df_pedidos.columns if "viajante" in c.lower(
 COLS["MOTIVO"] = next((c for c in df_pedidos.columns if "motivo" in c.lower()), None)
 # ── DATE COLUMN DETECTION ──
 def _try_parse_date(_series):
-    """Try text (dayfirst) and Excel serial strategies to parse dates."""
-    _s_str = _series.astype(str)
-    _t1 = pd.to_datetime(_s_str, errors="coerce", dayfirst=True)
+    """Try multiple date parsing strategies: ISO, dayfirst, auto, Excel serial."""
+    _s_clean = _series.astype(str).str.strip()
+    # Try explicit ISO format (yyyy-mm-dd)
+    _t1 = pd.to_datetime(_s_clean, format="%Y-%m-%d", errors="coerce")
     if _t1.notna().sum() > 0:
         return True, _t1
+    # Try dayfirst (dd/mm/yyyy, dd-mm-yyyy)
+    _t2 = pd.to_datetime(_s_clean, errors="coerce", dayfirst=True)
+    if _t2.notna().sum() > 0:
+        return True, _t2
+    # Try auto-detect
+    _t3 = pd.to_datetime(_s_clean, errors="coerce")
+    if _t3.notna().sum() > 0:
+        return True, _t3
+    # Try Excel serial dates
     if pd.api.types.is_numeric_dtype(_series):
-        _t2 = pd.to_datetime(_series, unit="D", origin="1899-12-30", errors="coerce")
-        if _t2.notna().sum() > 0:
-            return True, _t2
+        _t4 = pd.to_datetime(_series, unit="D", origin="1899-12-30", errors="coerce")
+        if _t4.notna().sum() > 0:
+            return True, _t4
     return False, _series
 
 # Exclude columns clearly NOT dates (but KEEP "data pedido" style columns)
@@ -351,7 +361,9 @@ if COLS["STATUS"]:
     df_pedidos[COLS["STATUS"]] = df_pedidos[COLS["STATUS"]].astype(str).map(STATUS_TRANSLATE).fillna(df_pedidos[COLS["STATUS"]].astype(str)).replace("", "Indefinido")
 for col in list(COLS.values()):
     if col and any(k in col.lower() for k in ["data"]):
-        try: df_pedidos[col] = pd.to_datetime(df_pedidos[col], errors="coerce", dayfirst=True)
+        try:
+            _ok, _t = _try_parse_date(df_pedidos[col])
+            if _ok: df_pedidos[col] = _t
         except: pass
 
 # ── REEMBOLSOS PARSE ──
