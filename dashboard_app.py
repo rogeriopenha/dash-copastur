@@ -37,7 +37,7 @@ st.markdown("""
     .stTabs button[data-baseweb="tab"] { border-radius: 8px; padding: 0.45rem 1.1rem; font-weight: 500; font-size: 0.85rem; color: #8899b8; border: none; transition: all 0.15s ease; }
     .stTabs button[data-baseweb="tab"]:hover { color: #e8edf5; background: #253052; }
     .stTabs button[data-baseweb="tab"][aria-selected="true"] { background: #253e81 !important; color: white !important; }
-    footer { display: none; }
+    footer, header[data-testid="stHeader"] { display: none; }
     section[data-testid="stSidebar"] { background: #283556; border-right: 2px solid #5a7a9a; display: flex; flex-direction: column; }
     section[data-testid="stSidebar"]::-webkit-scrollbar { width: 8px; }
     section[data-testid="stSidebar"]::-webkit-scrollbar-track { background: transparent; }
