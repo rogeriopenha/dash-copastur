@@ -1061,6 +1061,8 @@ with tabs[ti]:
                                     if mot_col:
                                         st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total Viajante X Motivo Viagem</h3>", unsafe_allow_html=True)
                                         gs_st = df_st.groupby(["Viajante", mot_col])[val_col].sum().reset_index()
+                                        top_via_mot = gs_st.groupby("Viajante")[val_col].sum().sort_values(ascending=False).head(10).index
+                                        gs_st = gs_st[gs_st["Viajante"].isin(top_via_mot)]
                                         via_tot = gs_st.groupby("Viajante")[val_col].sum()
                                         gs_st["Pct"] = gs_st.apply(lambda r: r[val_col] / via_tot.get(r["Viajante"], 1) * 100 if via_tot.get(r["Viajante"], 0) > 0 else 0, axis=1).round(1)
                                         fig = px.bar(gs_st, x="Viajante", y="Pct", color=mot_col,
@@ -1083,7 +1085,7 @@ with tabs[ti]:
                                     else:
                                         st.caption("Sem coluna de motivo viagem.")
                                     st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total por Viajante</h3>", unsafe_allow_html=True)
-                                    stotal_st = df_st.groupby("Viajante")[val_col].sum().sort_values(ascending=True)
+                                    stotal_st = df_st.groupby("Viajante")[val_col].sum().sort_values(ascending=False).head(10)
                                     fig = go.Figure(go.Bar(x=stotal_st.values, y=stotal_st.index, orientation="h",
                                         marker=dict(color=stotal_st.values, colorscale="Blues", line=dict(width=0)),
                                         text=stotal_st.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
