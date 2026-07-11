@@ -472,21 +472,21 @@ if busca_pedido:
 
 if COLS["STATUS"]:
     opts = sorted(df_filt[COLS["STATUS"]].dropna().unique())
-    sel = st.sidebar.multiselect("Status", opts, default=opts)
+    sel = st.sidebar.multiselect("Status", opts, default=opts, placeholder="Selecione...")
     if sel and len(sel) < len(opts):
         df_filt = df_filt[df_filt[COLS["STATUS"]].isin(sel)]
         filtros_aplicados += 1
 
 if COLS["SOLICITANTE"]:
     opts = sorted(df_filt[COLS["SOLICITANTE"]].dropna().unique())
-    sel = st.sidebar.multiselect("Solicitante", opts, default=[])
+    sel = st.sidebar.multiselect("Solicitante", opts, default=[], placeholder="Selecione...")
     if sel:
         df_filt = df_filt[df_filt[COLS["SOLICITANTE"]].isin(sel)]
         filtros_aplicados += 1
 
 if COLS["CCUSTO"]:
     opts = sorted(df_filt[COLS["CCUSTO"]].dropna().unique())
-    sel = st.sidebar.multiselect("Centro de Custo", opts, default=[])
+    sel = st.sidebar.multiselect("Centro de Custo", opts, default=[], placeholder="Selecione...")
     if sel:
         df_filt = df_filt[df_filt[COLS["CCUSTO"]].isin(sel)]
         filtros_aplicados += 1
@@ -500,7 +500,7 @@ if VIAJANTE_LIST:
         )
     else:
         viajantes_contextuais = VIAJANTE_LIST
-    sel_viajantes = st.sidebar.multiselect("Viajante", viajantes_contextuais, default=[])
+    sel_viajantes = st.sidebar.multiselect("Viajante", viajantes_contextuais, default=[], placeholder="Selecione...")
     if sel_viajantes:
         viajante_pedidos = set()
         for v in sel_viajantes:
@@ -511,7 +511,7 @@ if VIAJANTE_LIST:
 
 if COLS["EMPRESA"]:
     opts = sorted(df_filt[COLS["EMPRESA"]].dropna().unique())
-    sel = st.sidebar.multiselect("Empresa", opts, default=[])
+    sel = st.sidebar.multiselect("Empresa", opts, default=[], placeholder="Selecione...")
     if sel:
         df_filt = df_filt[df_filt[COLS["EMPRESA"]].isin(sel)]
         filtros_aplicados += 1
