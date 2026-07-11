@@ -1154,7 +1154,7 @@ with tabs[ti]:
                                             st.caption("Sem coluna de categoria.")
                                     with gc2:
                                         st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total por Viajante</h3>", unsafe_allow_html=True)
-                                        stotal_st = df_st.groupby("Viajante")[val_col].sum().sort_values(ascending=True)
+                                        stotal_st = df_st.groupby("Viajante")[val_col].sum().sort_values(ascending=False).head(10)
                                         fig = go.Figure(go.Bar(x=stotal_st.values, y=stotal_st.index, orientation="h",
                                             marker=dict(color=stotal_st.values, colorscale="Blues", line=dict(width=0)),
                                             text=stotal_st.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
