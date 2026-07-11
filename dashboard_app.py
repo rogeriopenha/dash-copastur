@@ -299,22 +299,18 @@ COLS["MOTIVO"] = next((c for c in df_pedidos.columns if "motivo" in c.lower()), 
 # ── DATE COLUMN DETECTION ──
 # Priority-based name matching, validated by actual datetime parsing
 def _try_parse_date(_series):
-    """Try multiple date parsing strategies: ISO, dayfirst, auto, Excel serial."""
+    """Try dayfirst (handles dd/mm/yyyy, yyyy-mm-dd timestamps with tz), auto-detect, Excel serial."""
     _s_clean = _series.astype(str).str.strip()
-    for _fmt in ["%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%d/%m/%Y", "%d/%m/%Y %H:%M:%S"]:
-        _t = pd.to_datetime(_s_clean, format=_fmt, errors="coerce")
-        if _t.notna().sum() > 0:
-            return True, _t
-    _t2 = pd.to_datetime(_s_clean, errors="coerce", dayfirst=True)
+    _t1 = pd.to_datetime(_s_clean, errors="coerce", dayfirst=True)
+    if _t1.notna().sum() > 0:
+        return True, _t1
+    _t2 = pd.to_datetime(_s_clean, errors="coerce")
     if _t2.notna().sum() > 0:
         return True, _t2
-    _t3 = pd.to_datetime(_s_clean, errors="coerce")
-    if _t3.notna().sum() > 0:
-        return True, _t3
     if pd.api.types.is_numeric_dtype(_series):
-        _t4 = pd.to_datetime(_series, unit="D", origin="1899-12-30", errors="coerce")
-        if _t4.notna().sum() > 0:
-            return True, _t4
+        _t3 = pd.to_datetime(_series, unit="D", origin="1899-12-30", errors="coerce")
+        if _t3.notna().sum() > 0:
+            return True, _t3
     return False, _series
 
 COLS["DATA"] = None
@@ -424,13 +420,12 @@ if data_ok:
         st.sidebar.markdown("### 📅 Período")
         dc1, dc2 = st.sidebar.columns(2)
         with dc1:
-            start_date = st.date_input("De", value=min_d, min_value=min_d, max_value=max_d, format="DD/MM/YYYY", key="date_start")
+            start_date = st.date_input("De", value=min_d, min_value=min_d, max_value=max_d, format="DD/MM/YYYY")
         with dc2:
-            end_date = st.date_input("Até", value=max_d, min_value=min_d, max_value=max_d, format="DD/MM/YYYY", key="date_end")
+            end_date = st.date_input("Até", value=max_d, min_value=min_d, max_value=max_d, format="DD/MM/YYYY")
         _before = len(df_filt)
         date_mask = (df_filt[data_col].dt.date >= start_date) & (df_filt[data_col].dt.date <= end_date)
-        nat_mask = df_filt[data_col].isna()
-        df_filt = df_filt[date_mask | nat_mask]
+        df_filt = df_filt[date_mask]
         _after = len(df_filt)
         if _after < _before:
             filtros_aplicados += 1
@@ -779,8 +774,7 @@ with tabs[ti]:
                                 if _ok_dt:
                                     df_ed[_ed_data_col] = _t_dt
                                     _ed_date_mask = (df_ed[_ed_data_col].dt.date >= start_date) & (df_ed[_ed_data_col].dt.date <= end_date)
-                                    _ed_nat_mask = df_ed[_ed_data_col].isna()
-                                    df_ed = df_ed[_ed_date_mask | _ed_nat_mask]
+                                    df_ed = df_ed[_ed_date_mask]
                             except:
                                 pass
                         st.caption(f"{len(df_ed)} registros • {len(df_ed.columns)} colunas")
@@ -860,8 +854,7 @@ with tabs[ti]:
                             if _ok_dt:
                                 df_st[_st_data_col] = _t_dt
                                 _st_date_mask = (df_st[_st_data_col].dt.date >= start_date) & (df_st[_st_data_col].dt.date <= end_date)
-                                _st_nat_mask = df_st[_st_data_col].isna()
-                                df_st = df_st[_st_date_mask | _st_nat_mask]
+                                df_st = df_st[_st_date_mask]
                         except:
                             pass
 
