@@ -297,11 +297,25 @@ COLS["AGENCIA"] = next((c for c in df_pedidos.columns if "agência" in c.lower()
 COLS["VIAJANTE"] = next((c for c in df_pedidos.columns if "viajante" in c.lower()), None)
 COLS["MOTIVO"] = next((c for c in df_pedidos.columns if "motivo" in c.lower()), None)
 # ── DATE COLUMN DETECTION ──
-# Priority-based name matching, then brute-force scan ALL columns
+def _try_parse_date(_series):
+    """Try text (dayfirst) and Excel serial strategies to parse dates."""
+    _s_str = _series.astype(str)
+    _t1 = pd.to_datetime(_s_str, errors="coerce", dayfirst=True)
+    if _t1.notna().sum() > 0:
+        return True, _t1
+    if pd.api.types.is_numeric_dtype(_series):
+        _t2 = pd.to_datetime(_series, unit="D", origin="1899-12-30", errors="coerce")
+        if _t2.notna().sum() > 0:
+            return True, _t2
+    return False, _series
+
+# Exclude columns clearly NOT dates (but KEEP "data pedido" style columns)
+_COLS_NON_DATE_KW = ["nº", "num", "cod", "id", "total", "valor", "preço", "preco", "qtd", "quant", "telefone", "cnpj", "cpf", "cep", "email", "site", "obs", "descri"]
 COLS["DATA"] = None
+# Priority-based name matching: try date-specific patterns, including "data pedido"
 _COLS_DATA_PRIORITY = [
     lambda c: "cota" in c.lower() and "data" in c.lower(),
-    lambda c: "pedido" in c.lower() and "data" in c.lower(),
+    lambda c: "data" in c.lower() and "pedido" in c.lower(),
     lambda c: "data" in c.lower() and "emiss" in c.lower(),
     lambda c: "data" in c.lower() and "cria" in c.lower(),
     lambda c: "data" in c.lower(),
@@ -310,27 +324,22 @@ _COLS_DATA_PRIORITY = [
 for _fn in _COLS_DATA_PRIORITY:
     _cands = [c for c in df_pedidos.columns if _fn(c)]
     for _c in _cands:
-        try:
-            _t = pd.to_datetime(df_pedidos[_c], errors="coerce", dayfirst=True)
-            if _t.notna().sum() > 0:
-                COLS["DATA"] = _c
-                df_pedidos[_c] = _t
-                break
-        except:
-            continue
+        _ok, _t = _try_parse_date(df_pedidos[_c])
+        if _ok:
+            COLS["DATA"] = _c
+            df_pedidos[_c] = _t
+            break
     if COLS["DATA"]:
         break
-# Brute-force fallback: try every column, pick first with >30% valid dates
+# Brute-force: try remaining non-obvious columns, pick first with >30% valid dates
 if COLS["DATA"] is None:
-    for _c in df_pedidos.columns:
-        try:
-            _t = pd.to_datetime(df_pedidos[_c], errors="coerce", dayfirst=True)
-            if _t.notna().sum() > len(df_pedidos) * 0.3:
-                COLS["DATA"] = _c
-                df_pedidos[_c] = _t
-                break
-        except:
-            continue
+    _candidates_bf = [c for c in df_pedidos.columns if not any(k in c.lower() for k in _COLS_NON_DATE_KW)]
+    for _c in _candidates_bf:
+        _ok, _t = _try_parse_date(df_pedidos[_c])
+        if _ok and _t.notna().sum() > len(df_pedidos) * 0.3:
+            COLS["DATA"] = _c
+            df_pedidos[_c] = _t
+            break
 COLS["TIPO"] = next((c for c in df_pedidos.columns if "tipo" in c.lower()), None)
 
 # Use sum of all sub-tabs + Reembolsos as the order value (ignore Total column)
