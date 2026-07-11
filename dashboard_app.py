@@ -42,7 +42,11 @@ st.markdown("""
     section[data-testid="stSidebar"]::-webkit-scrollbar { width: 8px; }
     section[data-testid="stSidebar"]::-webkit-scrollbar-track { background: transparent; }
     section[data-testid="stSidebar"]::-webkit-scrollbar-thumb { background: #5a7a9a; border-radius: 4px; }
-    section[data-testid="stSidebar"]::-webkit-scrollbar-thumb:hover { background: #6a8aaa; }
+    section[data-testid="stSidebar"]::-webkit-scrollbar-thumb:hover { background: #7a9aba; }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: #1a2340; }
+    ::-webkit-scrollbar-thumb { background: #3a5a7a; border-radius: 5px; }
+    ::-webkit-scrollbar-thumb:hover { background: #5a7a9a; }
     section[data-testid="stSidebar"] > div:last-of-type { margin-top: auto; }
     .stSidebar .stMarkdown, .stSidebar .stMarkdown p, .stSidebar .stMarkdown h2, .stSidebar .stMarkdown h3 { color: #e8edf5; }
     .stSidebar .stSelectbox label, .stSidebar .stMultiSelect label, .stSidebar .stTextInput label, .stSidebar .stDateInput label { font-weight: 500; font-size: 0.78rem; color: #8899b8; }
