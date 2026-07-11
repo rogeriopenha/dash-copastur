@@ -48,6 +48,8 @@ st.markdown("""
     section[data-testid="stSidebar"] .stTextInput input,
     section[data-testid="stSidebar"] .stMultiSelect [data-baseweb="select"] > div { background: #d9e4f4 !important; border-color: #b8c9dd !important; }
     section[data-testid="stSidebar"] [data-baseweb="select"] * { color: #000000 !important; }
+    section[data-testid="stSidebar"] .stMultiSelect [data-baseweb="tag"] { background: #c5d5e8 !important; color: #000000 !important; border-radius: 4px; padding: 2px 6px; }
+    section[data-testid="stSidebar"] .stMultiSelect [data-baseweb="tag"]:hover { background: #b0c4dc !important; }
     section[data-testid="stSidebar"] .stTextInput input { color: #000000 !important; }
     section[data-testid="stSidebar"] .stDateInput input { background: #d9e4f4 !important; border-color: #b8c9dd !important; color: #000000 !important; }
     .st-cx { color: #e8edf5; }
