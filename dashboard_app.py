@@ -38,7 +38,8 @@ st.markdown("""
     .stTabs button[data-baseweb="tab"]:hover { color: #e8edf5; background: #253052; }
     .stTabs button[data-baseweb="tab"][aria-selected="true"] { background: #253e81 !important; color: white !important; }
     footer { display: none; }
-    section[data-testid="stSidebar"] { background: #283556; border-right: 1px solid #3a4a6a; }
+    section[data-testid="stSidebar"] { background: #283556; border-right: 1px solid #3a4a6a; display: flex; flex-direction: column; }
+    section[data-testid="stSidebar"] > div:last-of-type { margin-top: auto; }
     .stSidebar .stMarkdown, .stSidebar .stMarkdown p, .stSidebar .stMarkdown h2, .stSidebar .stMarkdown h3 { color: #e8edf5; }
     .stSidebar .stSelectbox label, .stSidebar .stMultiSelect label, .stSidebar .stTextInput label, .stSidebar .stDateInput label { font-weight: 500; font-size: 0.78rem; color: #8899b8; }
     .stDownloadButton > button { padding: 0.3rem 1.2rem; }
@@ -116,7 +117,7 @@ try:
     st.sidebar.image(logo, use_container_width=False)
 except:
     pass
-st.sidebar.markdown("<h2 style='color:#1a5276; margin-bottom:0;'>Dashboard - COPASTUR</h2><p style='color:#6c757d; font-size:0.85rem; margin-top:0;'>Fujicom - Pedidos</p>", unsafe_allow_html=True)
+st.sidebar.markdown("<h2 style='color:#b8cfe8; margin-bottom:0;'>Dashboard - COPASTUR</h2><p style='color:#8899b8; font-size:0.85rem; margin-top:0;'>Fujicom - Pedidos</p>", unsafe_allow_html=True)
 _email = st.session_state.authenticated_email
 st.sidebar.markdown(f"👤 {_email}", unsafe_allow_html=True)
 if st.sidebar.button("🚪 Sair", type="primary"):
@@ -520,6 +521,8 @@ if VIAJANTE_LIST and FILTERED_PEDIDOS:
 else:
     QTDE_VIAJANTES = len(VIAJANTE_LIST) if VIAJANTE_LIST else 0
 
+st.sidebar.markdown("---")
+
 st.sidebar.markdown('<div style="background:#2a3d5e; border:1px solid #4a6a8a; border-radius:10px; padding:0.7rem 1rem; box-shadow:0 3px 0 #1a2a4a, 0 4px 12px rgba(37,62,129,0.25); margin-bottom:0.8rem;">'
     '<p style="margin:0; font-size:12px; font-style:italic; color:#ffd700; line-height:1.6;">'
     'Desenvolvido por <b>Rogerio Penha</b><br>'
@@ -529,7 +532,6 @@ st.sidebar.markdown('<div style="background:#2a3d5e; border:1px solid #4a6a8a; b
     'Data: 05/07/2026'
     '</p></div>', unsafe_allow_html=True)
 
-st.sidebar.markdown("---")
 
 # ── MAIN KPIs ──
 total_gasto = df_filt[COLS["VALOR"]].sum() if COLS["VALOR"] else 0
