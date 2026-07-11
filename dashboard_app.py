@@ -412,6 +412,12 @@ df_filt = df_pedidos.copy()
 
 data_col = COLS["DATA"]
 data_ok = data_col and pd.api.types.is_datetime64_any_dtype(df_filt[data_col])
+if not data_ok and data_col:
+    # Re-try conversion with multi-strategy on df_filt
+    _ok, _t = _try_parse_date(df_filt[data_col])
+    if _ok:
+        df_filt[data_col] = _t
+        data_ok = True
 if data_ok:
     valid_dates = df_filt[data_col].dropna()
     if len(valid_dates) == 0:
@@ -421,19 +427,22 @@ if data_ok:
         st.sidebar.markdown("### 📅 Período")
         dc1, dc2 = st.sidebar.columns(2)
         with dc1:
-            start_date = st.date_input("De", value=min_d, min_value=min_d, max_value=max_d, format="DD/MM/YYYY")
+            start_date = st.date_input("De", value=min_d, min_value=min_d, max_value=max_d, format="DD/MM/YYYY", key="date_start")
         with dc2:
-            end_date = st.date_input("Até", value=max_d, min_value=min_d, max_value=max_d, format="DD/MM/YYYY")
+            end_date = st.date_input("Até", value=max_d, min_value=min_d, max_value=max_d, format="DD/MM/YYYY", key="date_end")
+        _before = len(df_filt)
         date_mask = (df_filt[data_col].dt.date >= start_date) & (df_filt[data_col].dt.date <= end_date)
         nat_mask = df_filt[data_col].isna()
         df_filt = df_filt[date_mask | nat_mask]
-        filtros_aplicados += 1
-        st.sidebar.caption(f"Filtrando por: {data_col}")
+        _after = len(df_filt)
+        if _after < _before:
+            filtros_aplicados += 1
+        st.sidebar.caption(f"📅 {data_col}: {_before} → {_after} registros")
 elif COLS["DATA"]:
     st.sidebar.caption(f'⚠️ Coluna "{COLS["DATA"]}" não é data')
 else:
     st.sidebar.caption('⚠️ Nenhuma coluna de data encontrada em "Pedidos"')
-    st.sidebar.caption(f"Colunas: {', '.join(df_pedidos.columns[:8])}{'...' if len(df_pedidos.columns) > 8 else ''}")
+    st.sidebar.caption(f"Colunas: {', '.join(df_pedidos.columns[:10])}{'...' if len(df_pedidos.columns) > 10 else ''}")
 
 # ── SINGLE ORDER FILTER ──
 st.sidebar.markdown("### 🔎 Pedido Específico")
@@ -754,13 +763,15 @@ with tabs[ti]:
                         _ed_ped_col = next((c for c in df_ed.columns if "pedido" in c.lower()), None)
                         if _ed_ped_col and FILTERED_PEDIDOS:
                             df_ed = df_ed[df_ed[_ed_ped_col].astype(str).str.strip().str.lstrip("0").isin(FILTERED_PEDIDOS)]
-                        _ed_data_col = next((c for c in df_ed.columns if any(k in c.lower() for k in ["data", "cotacao", "emissao", "viagem", "check"])), None)
+                        _ed_data_col = next((c for c in df_ed.columns if any(k in c.lower() for k in ["data", "cotacao", "emissao", "viagem", "check", "pagamento", "vencimento", "lancamento"])), None)
                         if data_ok and _ed_data_col:
                             try:
-                                df_ed[_ed_data_col] = pd.to_datetime(df_ed[_ed_data_col], errors="coerce", dayfirst=True)
-                                _ed_date_mask = (df_ed[_ed_data_col].dt.date >= start_date) & (df_ed[_ed_data_col].dt.date <= end_date)
-                                _ed_nat_mask = df_ed[_ed_data_col].isna()
-                                df_ed = df_ed[_ed_date_mask | _ed_nat_mask]
+                                _ok_dt, _t_dt = _try_parse_date(df_ed[_ed_data_col])
+                                if _ok_dt:
+                                    df_ed[_ed_data_col] = _t_dt
+                                    _ed_date_mask = (df_ed[_ed_data_col].dt.date >= start_date) & (df_ed[_ed_data_col].dt.date <= end_date)
+                                    _ed_nat_mask = df_ed[_ed_data_col].isna()
+                                    df_ed = df_ed[_ed_date_mask | _ed_nat_mask]
                             except:
                                 pass
                         st.caption(f"{len(df_ed)} registros • {len(df_ed.columns)} colunas")
@@ -833,13 +844,15 @@ with tabs[ti]:
                     if _st_ped_col and FILTERED_PEDIDOS:
                         df_st = df_st[df_st[_st_ped_col].astype(str).str.strip().str.lstrip("0").isin(FILTERED_PEDIDOS)]
                     # Apply date filter directly to subtab data
-                    _st_data_col = next((c for c in df_st.columns if any(k in c.lower() for k in ["data", "cotacao", "emissao", "viagem", "check"])), None)
+                    _st_data_col = next((c for c in df_st.columns if any(k in c.lower() for k in ["data", "cotacao", "emissao", "viagem", "check", "pagamento", "vencimento", "lancamento"])), None)
                     if data_ok and _st_data_col:
                         try:
-                            df_st[_st_data_col] = pd.to_datetime(df_st[_st_data_col], errors="coerce", dayfirst=True)
-                            _st_date_mask = (df_st[_st_data_col].dt.date >= start_date) & (df_st[_st_data_col].dt.date <= end_date)
-                            _st_nat_mask = df_st[_st_data_col].isna()
-                            df_st = df_st[_st_date_mask | _st_nat_mask]
+                            _ok_dt, _t_dt = _try_parse_date(df_st[_st_data_col])
+                            if _ok_dt:
+                                df_st[_st_data_col] = _t_dt
+                                _st_date_mask = (df_st[_st_data_col].dt.date >= start_date) & (df_st[_st_data_col].dt.date <= end_date)
+                                _st_nat_mask = df_st[_st_data_col].isna()
+                                df_st = df_st[_st_date_mask | _st_nat_mask]
                         except:
                             pass
 
