@@ -297,35 +297,31 @@ COLS["AGENCIA"] = next((c for c in df_pedidos.columns if "agência" in c.lower()
 COLS["VIAJANTE"] = next((c for c in df_pedidos.columns if "viajante" in c.lower()), None)
 COLS["MOTIVO"] = next((c for c in df_pedidos.columns if "motivo" in c.lower()), None)
 # ── DATE COLUMN DETECTION ──
+# Priority-based name matching, validated by actual datetime parsing
 def _try_parse_date(_series):
     """Try multiple date parsing strategies: ISO, dayfirst, auto, Excel serial."""
     _s_clean = _series.astype(str).str.strip()
-    # Try explicit ISO format (yyyy-mm-dd)
-    _t1 = pd.to_datetime(_s_clean, format="%Y-%m-%d", errors="coerce")
-    if _t1.notna().sum() > 0:
-        return True, _t1
-    # Try dayfirst (dd/mm/yyyy, dd-mm-yyyy)
+    for _fmt in ["%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%d/%m/%Y", "%d/%m/%Y %H:%M:%S"]:
+        _t = pd.to_datetime(_s_clean, format=_fmt, errors="coerce")
+        if _t.notna().sum() > 0:
+            return True, _t
     _t2 = pd.to_datetime(_s_clean, errors="coerce", dayfirst=True)
     if _t2.notna().sum() > 0:
         return True, _t2
-    # Try auto-detect
     _t3 = pd.to_datetime(_s_clean, errors="coerce")
     if _t3.notna().sum() > 0:
         return True, _t3
-    # Try Excel serial dates
     if pd.api.types.is_numeric_dtype(_series):
         _t4 = pd.to_datetime(_series, unit="D", origin="1899-12-30", errors="coerce")
         if _t4.notna().sum() > 0:
             return True, _t4
     return False, _series
 
-# Exclude columns clearly NOT dates (but KEEP "data pedido" style columns)
-_COLS_NON_DATE_KW = ["nº", "num", "cod", "id", "total", "valor", "preço", "preco", "qtd", "quant", "telefone", "cnpj", "cpf", "cep", "email", "site", "obs", "descri"]
 COLS["DATA"] = None
-# Priority-based name matching: try date-specific patterns, including "data pedido"
+# First: try exact patterns with "data" prefix
 _COLS_DATA_PRIORITY = [
-    lambda c: "cota" in c.lower() and "data" in c.lower(),
     lambda c: "data" in c.lower() and "pedido" in c.lower(),
+    lambda c: "data" in c.lower() and "cota" in c.lower(),
     lambda c: "data" in c.lower() and "emiss" in c.lower(),
     lambda c: "data" in c.lower() and "cria" in c.lower(),
     lambda c: "data" in c.lower(),
@@ -341,8 +337,9 @@ for _fn in _COLS_DATA_PRIORITY:
             break
     if COLS["DATA"]:
         break
-# Brute-force: try remaining non-obvious columns, pick first with >30% valid dates
+# Brute-force: try remaining non-obvious columns
 if COLS["DATA"] is None:
+    _COLS_NON_DATE_KW = ["nº", "num", "cod", "id", "total", "valor", "preço", "preco", "qtd", "quant", "telefone", "cnpj", "cpf", "cep", "email", "site", "obs", "descri"]
     _candidates_bf = [c for c in df_pedidos.columns if not any(k in c.lower() for k in _COLS_NON_DATE_KW)]
     for _c in _candidates_bf:
         _ok, _t = _try_parse_date(df_pedidos[_c])
@@ -695,22 +692,34 @@ if data_ok:
             st.markdown('<div class="card">', unsafe_allow_html=True)
             st.subheader("Gastos ao Longo do Tempo")
             if COLS["VALOR"]:
-                tr = df_filt.set_index(data_col).resample("ME")[COLS["VALOR"]].sum().reset_index()
-                fig = px.line(tr, x=data_col, y=COLS["VALOR"], markers=True)
-                fig.update_traces(line=dict(color="#1a5276", width=3), marker=dict(size=6))
-                fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(title=None), yaxis=dict(title="R$"))
-                fig.update_yaxes(tickprefix="R$ ")
-                fig.update_traces(hovertemplate="R$ %{y:,.2f}<extra></extra>")
-                st.plotly_chart(fig, use_container_width=True, key="chart_gastos_tempo")
+                try:
+                    tr = df_filt.dropna(subset=[data_col]).set_index(data_col).resample("ME")[COLS["VALOR"]].sum().reset_index()
+                    if not tr.empty:
+                        fig = px.line(tr, x=data_col, y=COLS["VALOR"], markers=True)
+                        fig.update_traces(line=dict(color="#1a5276", width=3), marker=dict(size=6))
+                        fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(title=None), yaxis=dict(title="R$"))
+                        fig.update_yaxes(tickprefix="R$ ")
+                        fig.update_traces(hovertemplate="R$ %{y:,.2f}<extra></extra>")
+                        st.plotly_chart(fig, use_container_width=True, key="chart_gastos_tempo")
+                    else:
+                        st.caption("Sem dados suficientes para o gráfico de tendência.")
+                except Exception:
+                    st.caption("Não foi possível gerar o gráfico de gastos ao longo do tempo.")
             st.markdown("</div>", unsafe_allow_html=True)
         with c2:
             st.markdown('<div class="card">', unsafe_allow_html=True)
             st.subheader("Volume de Pedidos por Mês")
-            ct = df_filt.set_index(data_col).resample("ME")[COLS["PEDIDO"] or df_filt.columns[0]].count().reset_index()
-            fig = px.bar(ct, x=data_col, y=COLS["PEDIDO"] or df_filt.columns[0], color_discrete_sequence=["#2e86c1"])
-            fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(title=None), yaxis=dict(title="Pedidos"))
-            fig.update_traces(hovertemplate="%{y}<extra></extra>")
-            st.plotly_chart(fig, use_container_width=True, key="chart_pedidos_mes")
+            try:
+                ct = df_filt.dropna(subset=[data_col]).set_index(data_col).resample("ME")[COLS["PEDIDO"] or df_filt.columns[0]].count().reset_index()
+                if not ct.empty:
+                    fig = px.bar(ct, x=data_col, y=COLS["PEDIDO"] or df_filt.columns[0], color_discrete_sequence=["#2e86c1"])
+                    fig.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(title=None), yaxis=dict(title="Pedidos"))
+                    fig.update_traces(hovertemplate="%{y}<extra></extra>")
+                    st.plotly_chart(fig, use_container_width=True, key="chart_pedidos_mes")
+                else:
+                    st.caption("Sem dados suficientes para o gráfico de volume.")
+            except Exception:
+                st.caption("Não foi possível gerar o gráfico de volume de pedidos.")
             st.markdown("</div>", unsafe_allow_html=True)
         ti += 1
 
