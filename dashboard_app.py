@@ -15,7 +15,7 @@ st.set_page_config(page_title="Dashboard - COPASTUR", page_icon="📊", layout="
 st.markdown("""
 <style>
     * { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; }
-    .main > div { padding: 1rem 2rem; }
+    .main > div { padding: 0.2rem 2rem; }
     .stApp { background: #0f1629; }
     .kpi-card { background: #1a2340; border-radius: 14px; padding: 1.2rem 1.5rem; box-shadow: 0 4px 16px rgba(0,0,0,0.3); border-left: 4px solid #7c9ccf; margin-bottom: 0.5rem; transition: transform 0.15s ease; }
     .kpi-card:hover { transform: translateY(-1px); }
