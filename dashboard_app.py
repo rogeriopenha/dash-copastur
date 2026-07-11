@@ -38,7 +38,7 @@ st.markdown("""
     .stTabs button[data-baseweb="tab"]:hover { color: #e8edf5; background: #253052; }
     .stTabs button[data-baseweb="tab"][aria-selected="true"] { background: #253e81 !important; color: white !important; }
     footer { display: none; }
-    section[data-testid="stSidebar"] { background: #0f1629; border-right: 1px solid #1a2340; }
+    section[data-testid="stSidebar"] { background: #283556; border-right: 1px solid #3a4a6a; }
     .stSidebar .stMarkdown, .stSidebar .stMarkdown p, .stSidebar .stMarkdown h2, .stSidebar .stMarkdown h3 { color: #e8edf5; }
     .stSidebar .stSelectbox label, .stSidebar .stMultiSelect label, .stSidebar .stTextInput label, .stSidebar .stDateInput label { font-weight: 500; font-size: 0.78rem; color: #8899b8; }
     .stDownloadButton > button { padding: 0.3rem 1.2rem; }
@@ -53,7 +53,7 @@ st.markdown("""
     .stDateInput input { background: #1a2340; border-color: #253052; color: #e8edf5; }
     div[data-baseweb="menu"] { background: #ffffff; border: 1px solid #a0b8cc; }
     li[role="option"] { color: #1a1a2e; }
-    li[role="option"]:hover, li[role="option"][aria-selected="true"] { background: #253e81; color: #ffffff; }
+    li[role="option"]:hover, li[role="option"][aria-selected="true"] { background: #6a9ee8; color: #ffffff; }
     .stAlert { background: #1a2340; color: #e8edf5; border-color: #253052; }
     .login-container { max-width: 380px; margin: 0 auto; padding: 2rem 0; }
     .login-container .stImage { text-align: center; }
@@ -520,7 +520,7 @@ if VIAJANTE_LIST and FILTERED_PEDIDOS:
 else:
     QTDE_VIAJANTES = len(VIAJANTE_LIST) if VIAJANTE_LIST else 0
 
-st.sidebar.markdown('<div style="background:#16233a; border:1px solid #253e81; border-radius:10px; padding:0.7rem 1rem; box-shadow:0 3px 0 #0f1a2e, 0 4px 12px rgba(37,62,129,0.25); margin-bottom:0.8rem;">'
+st.sidebar.markdown('<div style="background:#2a3d5e; border:1px solid #4a6a8a; border-radius:10px; padding:0.7rem 1rem; box-shadow:0 3px 0 #1a2a4a, 0 4px 12px rgba(37,62,129,0.25); margin-bottom:0.8rem;">'
     '<p style="margin:0; font-size:12px; font-style:italic; color:#ffd700; line-height:1.6;">'
     'Desenvolvido por <b>Rogerio Penha</b><br>'
     'rogeriopenha@gmail.com<br>'
