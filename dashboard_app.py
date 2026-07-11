@@ -950,8 +950,8 @@ with tabs[ti]:
                                     if ped_col_st and VIAJANTE_REVERSE_MAP:
                                         df_st["Viajante"] = df_st[ped_col_st].astype(str).str.strip().str.lstrip("0").map(VIAJANTE_REVERSE_MAP)
                                     if "Viajante" in df_st.columns and df_st["Viajante"].notna().sum() > 0:
-                                        st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total por Viajante <span style='font-size:10px; font-style:italic; color:#8899b8;'>(20 maiores gastos)</span></h3>", unsafe_allow_html=True)
-                                        stotal_st = df_st.groupby("Viajante")[val_col].sum().sort_values(ascending=False).head(20).sort_values(ascending=True)
+                                        st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Total por Viajante <span style='font-size:10px; font-style:italic; color:#8899b8;'>(15 maiores gastos)</span></h3>", unsafe_allow_html=True)
+                                        stotal_st = df_st.groupby("Viajante")[val_col].sum().sort_values(ascending=False).head(15)
                                         fig = go.Figure(go.Bar(x=stotal_st.values, y=stotal_st.index, orientation="h",
                                             marker=dict(color=stotal_st.values, colorscale="Blues", line=dict(width=0)),
                                             text=stotal_st.apply(lambda x: f"R$ {x:,.0f}"), textposition="outside"))
@@ -964,6 +964,8 @@ with tabs[ti]:
                                 if "Viajante" in df_st.columns and df_st["Viajante"].notna().sum() > 0:
                                     st.markdown("<h3 style='color:#ffffff; margin-bottom:0.5rem;'>Gastos: Viajante x Categoria</h3>", unsafe_allow_html=True)
                                     gs_st = df_st.groupby(["Viajante", grupo_col])[val_col].sum().reset_index()
+                                    top_via = gs_st.groupby("Viajante")[val_col].sum().sort_values(ascending=False).head(10).index
+                                    gs_st = gs_st[gs_st["Viajante"].isin(top_via)]
                                     via_tot = gs_st.groupby("Viajante")[val_col].sum()
                                     gs_st["Pct"] = gs_st.apply(lambda r: r[val_col] / via_tot.get(r["Viajante"], 1) * 100 if via_tot.get(r["Viajante"], 0) > 0 else 0, axis=1).round(1)
                                     fig = px.bar(gs_st, x="Viajante", y="Pct", color=grupo_col,
