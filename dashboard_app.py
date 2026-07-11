@@ -674,7 +674,7 @@ if VIAJANTE_REVERSE_MAP and COLS["PEDIDO"]:
                 marker=dict(color=sc.values, colorscale="Teal", line=dict(width=0)),
                 text=sc.values, textposition="outside"))
             fig.update_layout(height=500, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor="white", font=dict(color="#1a1a2e"), plot_bgcolor="white", xaxis=dict(visible=False), yaxis=dict(title=None))
-            fig.update_traces(hovertemplate="R$ %{x:,.2f}<extra></extra>")
+            fig.update_traces(hovertemplate="%{x}<extra></extra>")
             st.plotly_chart(fig, use_container_width=True, key="chart_volume_pedidos")
             st.markdown("</div>", unsafe_allow_html=True)
         ti += 1
