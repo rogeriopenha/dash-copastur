@@ -38,7 +38,11 @@ st.markdown("""
     .stTabs button[data-baseweb="tab"]:hover { color: #e8edf5; background: #253052; }
     .stTabs button[data-baseweb="tab"][aria-selected="true"] { background: #253e81 !important; color: white !important; }
     footer { display: none; }
-    section[data-testid="stSidebar"] { background: #283556; border-right: 1px solid #3a4a6a; display: flex; flex-direction: column; }
+    section[data-testid="stSidebar"] { background: #283556; border-right: 2px solid #5a7a9a; display: flex; flex-direction: column; }
+    section[data-testid="stSidebar"]::-webkit-scrollbar { width: 8px; }
+    section[data-testid="stSidebar"]::-webkit-scrollbar-track { background: transparent; }
+    section[data-testid="stSidebar"]::-webkit-scrollbar-thumb { background: #5a7a9a; border-radius: 4px; }
+    section[data-testid="stSidebar"]::-webkit-scrollbar-thumb:hover { background: #6a8aaa; }
     section[data-testid="stSidebar"] > div:last-of-type { margin-top: auto; }
     .stSidebar .stMarkdown, .stSidebar .stMarkdown p, .stSidebar .stMarkdown h2, .stSidebar .stMarkdown h3 { color: #e8edf5; }
     .stSidebar .stSelectbox label, .stSidebar .stMultiSelect label, .stSidebar .stTextInput label, .stSidebar .stDateInput label { font-weight: 500; font-size: 0.78rem; color: #8899b8; }
