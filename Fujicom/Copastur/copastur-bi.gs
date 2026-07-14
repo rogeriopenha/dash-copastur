@@ -6,6 +6,7 @@ function onOpen() {
       .addSeparator()
       .addItem('Executar (Data Informada)', 'RUN_MANUAL')
       .addItem('Executar (Última Execução)', 'RUN_INCREMENTAL')
+      .addItem('Carga Histórica (B9 até hoje)', 'RUN_HISTORIC')
       .addSeparator()
       .addItem('Diagnosticar Auto-Execução', 'TEST_AUTO')
       .addSeparator()
@@ -877,4 +878,73 @@ function TEST_AUTO() {
     msgs.push('C17 atualizado com sucesso!');
   }
   SpreadsheetApp.getUi().alert('Diagnóstico Auto-Execução:\n\n' + msgs.join('\n'));
+}
+
+function removeTrigger_(funcName) {
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === funcName) {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+}
+
+function alertUser_(msg) {
+  try { SpreadsheetApp.getUi().alert(msg); } catch (e) {}
+}
+
+function RUN_HISTORIC() {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('Painel');
+    if (!sheet) throw new Error('Painel não encontrado');
+    var tz = ss.getSpreadsheetTimeZone();
+
+    var startDate = getCellDate_(9);
+    if (!startDate) {
+      alertUser_('Preencha a Data Início (B9) no Painel.');
+      return;
+    }
+
+    var fmtHoje = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
+
+    if (startDate >= fmtHoje) {
+      removeTrigger_('RUN_HISTORIC');
+      sheet.getRange('C17').setValue('Histórico concluído em ' + Utilities.formatDate(new Date(), tz, 'dd/MM/yyyy HH:mm:ss'));
+      alertUser_('Carga histórica concluída!');
+      return;
+    }
+
+    var startDt = new Date(startDate);
+    var endDt = new Date(startDt);
+    endDt.setDate(endDt.getDate() + 10);
+    var endDate = Utilities.formatDate(endDt, tz, 'yyyy-MM-dd');
+    if (endDate > fmtHoje) endDate = fmtHoje;
+
+    sheet.getRange('C17').setValue('Histórico: ' + startDate + ' até ' + endDate + '...');
+    SpreadsheetApp.flush();
+
+    var novos = processOrders_BY_PERIOD_(startDate, endDate);
+
+    var nextStart = new Date(endDt);
+    nextStart.setDate(nextStart.getDate() + 1);
+    var nextStartStr = Utilities.formatDate(nextStart, tz, 'yyyy-MM-dd');
+    sheet.getRange('B9').setValue(nextStartStr);
+
+    updateLastRun_();
+    updateContadoresPainel_();
+
+    sheet.getRange('C17').setValue('Histórico: ' + novos + ' novos (' + startDate + ' a ' + endDate + '). Aguardando...');
+
+    removeTrigger_('RUN_HISTORIC');
+    ScriptApp.newTrigger('RUN_HISTORIC').timeBased().after(60000).create();
+
+  } catch (e) {
+    removeTrigger_('RUN_HISTORIC');
+    try {
+      var s = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Painel');
+      if (s) s.getRange('C17').setValue('ERRO Histórico: ' + e.message);
+    } catch (ignored) {}
+    alertUser_('ERRO na carga histórica: ' + e.message);
+  }
 }
