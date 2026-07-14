@@ -559,12 +559,9 @@ if COLS["EMPRESA"]:
         df_filt = df_filt[df_filt[COLS["EMPRESA"]].isin(sel)]
         filtros_aplicados += 1
 
-c1, c2 = st.sidebar.columns(2)
-with c1:
-    if filtros_aplicados > 0:
-        st.caption(f"{filtros_aplicados} filtro(s)")
-with c2:
-    if filtros_aplicados > 0 and st.button("Limpar"):
+if filtros_aplicados > 0:
+    st.sidebar.caption(f"{filtros_aplicados} filtro(s) ativo(s)")
+    if st.sidebar.button("🧹 Limpar Filtros", use_container_width=True):
         st.session_state.busca_pedido = ""
         st.session_state._busca_pedido = ""
         st.session_state._sel_viajantes = []
