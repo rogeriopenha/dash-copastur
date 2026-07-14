@@ -565,6 +565,9 @@ with c1:
         st.caption(f"{filtros_aplicados} filtro(s)")
 with c2:
     if filtros_aplicados > 0 and st.button("Limpar"):
+        st.session_state.busca_pedido = ""
+        st.session_state._busca_pedido = ""
+        st.session_state._sel_viajantes = []
         st.rerun()
 
 FILTERED_PEDIDOS = set(df_filt[COLS["PEDIDO"]].astype(str).str.strip().str.lstrip("0")) if COLS["PEDIDO"] else set()
