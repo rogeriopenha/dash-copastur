@@ -449,11 +449,17 @@ if data_ok:
             end_date = st.date_input("Até", value=max_d, min_value=min_d, max_value=max_d, format="DD/MM/YYYY")
         _before = len(df_filt)
         date_mask = (df_filt[data_col].dt.date >= start_date) & (df_filt[data_col].dt.date <= end_date)
+        _sem_data = df_filt[data_col].isna().sum()
+        if _sem_data:
+            date_mask = date_mask | df_filt[data_col].isna()
         df_filt = df_filt[date_mask]
         _after = len(df_filt)
         if _after < _before:
             filtros_aplicados += 1
-        st.sidebar.caption(f"📅 {data_col}: {_before} → {_after} registros")
+        _caption = f"📅 {data_col}: {_before} → {_after} registros"
+        if _sem_data:
+            _caption += f" ({_sem_data} sem data)"
+        st.sidebar.caption(_caption)
 elif COLS["DATA"]:
     st.sidebar.caption(f'⚠️ Coluna "{COLS["DATA"]}" não é data')
 else:
