@@ -89,8 +89,8 @@ function getConfig_() {
   const sheet = ss.getSheetByName('Painel');
   const padrao = {
     BASE_URL: 'https://api.copastur.com.br/api-company',
-    USERNAME: 'fujicomhomolog@copastur.com.br',
-    PASSWORD: '^Oe#w#bil4A$50A',
+    USERNAME: '',
+    PASSWORD: '',
     TOKEN_KEY: 'COPASTUR_BI_TOKEN',
     EXPIRY_KEY: 'COPASTUR_BI_TOKEN_EXPIRY',
     AUTH_TIME_KEY: 'COPASTUR_BI_AUTH_TIME'
@@ -98,8 +98,8 @@ function getConfig_() {
   if (!sheet) return padrao;
   return {
     BASE_URL: sheet.getRange('B6').getValue() || padrao.BASE_URL,
-    USERNAME: sheet.getRange('B4').getValue() || padrao.USERNAME,
-    PASSWORD: sheet.getRange('B5').getValue() || padrao.PASSWORD,
+    USERNAME: sheet.getRange('B4').getValue() || '',
+    PASSWORD: sheet.getRange('B5').getValue() || '',
     TOKEN_KEY: padrao.TOKEN_KEY,
     EXPIRY_KEY: padrao.EXPIRY_KEY,
     AUTH_TIME_KEY: padrao.AUTH_TIME_KEY
@@ -218,19 +218,33 @@ function appendToSheet_(data, sheetName) {
     added = rows.length;
   } else {
     var existingHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    var dataHeaders = Object.keys(data[0]);
+    var newCols = [];
+    for (var c = 0; c < dataHeaders.length; c++) {
+      if (existingHeaders.indexOf(dataHeaders[c]) === -1) newCols.push(dataHeaders[c]);
+    }
+    if (newCols.length > 0) {
+      var lastCol = sheet.getLastColumn();
+      for (var nc = 0; nc < newCols.length; nc++) {
+        sheet.getRange(1, lastCol + nc + 1).setValue(newCols[nc]).setFontWeight('bold');
+      }
+      SpreadsheetApp.flush();
+      existingHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    }
     var existingData = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
     var existingKeys = {};
     for (var e = 0; e < existingData.length; e++) {
-      existingKeys[String(existingData[e][0])] = true;
+      existingKeys[String(existingData[e].join('|||'))] = true;
     }
     var newRows = [];
     for (var d = 0; d < data.length; d++) {
-      var key = String(data[d][existingHeaders[0]] || '');
+      var row = existingHeaders.map(function(h) {
+        var val = data[d][h];
+        return val !== null && val !== undefined ? String(val) : '';
+      });
+      var key = row.join('|||');
       if (!existingKeys[key]) {
-        newRows.push(existingHeaders.map(function(h) {
-          var val = data[d][h];
-          return val !== null && val !== undefined ? val : '';
-        }));
+        newRows.push(row);
         existingKeys[key] = true;
       }
     }
@@ -296,15 +310,30 @@ function getExistingOrderNumbers_() {
 }
 
 function processOrders_BY_PERIOD_(startDate, endDate) {
-  var params = { request_date_start: startDate, request_date_end: endDate };
-  var res = apiGetWithParams('/v2/api/Order/List', params);
-  var orders = res.data || [];
-  if (orders.length === 0) return 0;
+  var allOrders = [];
+  var page = 1;
+  var pageSize = 100;
+  var maxPages = 100;
+  while (page <= maxPages) {
+    var params = {
+      request_date_start: startDate,
+      request_date_end: endDate,
+      page: page,
+      pageSize: pageSize
+    };
+    var res = apiGetWithParams('/v2/api/Order/List', params);
+    var orders = res.data || [];
+    if (orders.length === 0) break;
+    allOrders = allOrders.concat(orders);
+    if (orders.length < pageSize) break;
+    page++;
+  }
+  if (allOrders.length === 0) return 0;
 
   var existingOrders = getExistingOrderNumbers_();
   var orderNumbers = [];
-  for (var i = 0; i < orders.length; i++) {
-    var num = orders[i].osNumber || orders[i].requestNumber || '';
+  for (var i = 0; i < allOrders.length; i++) {
+    var num = allOrders[i].osNumber || allOrders[i].requestNumber || '';
     if (num && !existingOrders[num]) orderNumbers.push(num);
   }
   if (orderNumbers.length === 0) return 0;
@@ -390,7 +419,8 @@ function processOrders_BY_PERIOD_(startDate, endDate) {
             'Classe': air.class || '', 'Cabine': air.cabin || '', 'Status': air.status || '',
             'Fornecedor': air.supplier || '', 'Conexões': air.connections || '', 'Paradas': air.stops || '',
             'Origem País': air.countryDeparture || '', 'Destino País': air.countryArrival || '',
-            'ID Cotação': air.quotationId || ''
+            'ID Cotação': air.quotationId || '',
+            'Viajante': d.traveler || ''
           });
         }
       }
@@ -409,7 +439,8 @@ function processOrders_BY_PERIOD_(startDate, endDate) {
             'Fornecedor': hot.supplier || '', 'Voucher': hot.voucher || '',
             'Data Cancelamento': hot.dateCancel || '', 'Categoria': hot.category || '',
             'Nº Autorização': hot.authorizationNumber || '', 'Online': hot.online || '',
-            'Data Criação': hot.dateCreated || ''
+            'Data Criação': hot.dateCreated || '',
+            'Viajante': d.traveler || ''
           });
         }
       }
@@ -427,7 +458,8 @@ function processOrders_BY_PERIOD_(startDate, endDate) {
             'Taxas': car.tax || '', 'Total': car.totalFare || '', 'Moeda': car.currency || '',
             'Diárias': car.dailyQuantity || '', 'Voucher': car.voucher || '',
             'Data Cancelamento': car.cancelDate || '', 'Nº Autorização': car.authorizationNumber || '',
-            'Data Criação': car.dateCreated || ''
+            'Data Criação': car.dateCreated || '',
+            'Viajante': d.traveler || ''
           });
         }
       }
@@ -438,7 +470,8 @@ function processOrders_BY_PERIOD_(startDate, endDate) {
           outrosData.push({
             'Nº Pedido': num, 'Origem': mis.departure || '', 'Destino': mis.arrival || '',
             'Data Partida': mis.departureDate || '', 'Data Chegada': mis.arrivalDate || '',
-            'Fornecedor': mis.supplier || '', 'Total': mis.totalFare || ''
+            'Fornecedor': mis.supplier || '', 'Total': mis.totalFare || '',
+            'Viajante': d.traveler || ''
           });
         }
       }
@@ -454,7 +487,8 @@ function processOrders_BY_PERIOD_(startDate, endDate) {
             'Total': svc.totalFare || '', 'Voucher': svc.voucher || '', 'Data Voucher': svc.dateVoucher || '',
             'Observação': svc.remarks || '', 'ID Cotação': svc.quotationId || '',
             'Nº Autorização': svc.authorizationNumber || '', 'Data Cancelamento': svc.dateCanceled || '',
-            'Data Emissão': svc.issuedDate || '', 'Data Criação': svc.dateCreated || ''
+            'Data Emissão': svc.issuedDate || '',             'Data Criação': svc.dateCreated || '',
+            'Viajante': d.traveler || ''
           });
         }
       }
@@ -472,7 +506,8 @@ function processOrders_BY_PERIOD_(startDate, endDate) {
             'Total': trp.totalFare || '', 'Voucher': trp.voucher || '', 'Data Voucher': trp.dateVoucher || '',
             'Observação': trp.remarks || '', 'ID Cotação': trp.quotationId || '',
             'Data Inclusão': trp.dateIncluded || '', 'Data Atualização': trp.dateUpdated || '',
-            'Data Vencimento': trp.dateExpired || '', 'Data Cancelamento': trp.dateCanceled || ''
+            'Data Vencimento': trp.dateExpired || '',             'Data Cancelamento': trp.dateCanceled || '',
+            'Viajante': d.traveler || ''
           });
         }
       }
@@ -496,7 +531,8 @@ function processOrders_BY_PERIOD_(startDate, endDate) {
             'Data Pagamento': ref.datePaid || '', 'Data Início': ref.dateStart || '',
             'Data Fim': ref.dateEnd || '', 'Data Modificação': ref.dateModified || '',
             'Ativo': ref.isActive || '', 'Aprovado': ref.isApproved || '',
-            'Reembolso': ref.isRefund || '', 'Verificado': ref.isVerified || ''
+            'Reembolso': ref.isRefund || '', 'Verificado': ref.isVerified || '',
+            'Viajante': d.traveler || ''
           });
         }
       }
@@ -516,7 +552,8 @@ function processOrders_BY_PERIOD_(startDate, endDate) {
             'País Destino': adv.arrivalCountry || '', 'Comentários': adv.comments || '',
             'Data Criação': adv.dateCreated || '', 'Data Pagamento': adv.datePaid || '',
             'Data Início': adv.dateStart || '', 'Data Fim': adv.dateEnd || '',
-            'Data Modificação': adv.dateModified || ''
+            'Data Modificação': adv.dateModified || '',
+            'Viajante': d.traveler || ''
           });
         }
       }
@@ -539,7 +576,8 @@ function processOrders_BY_PERIOD_(startDate, endDate) {
           aprovadoresData.push({
             'Nº Pedido': num, 'Nome': apr.fullName || '', 'Login': apr.login || '',
             'Email': apr.email || '', 'Matrícula': apr.registration || '',
-            'Data Aprovação': apr.approvalDate || ''
+            'Data Aprovação': apr.approvalDate || '',
+            'Viajante': d.traveler || ''
           });
         }
       }
@@ -553,7 +591,8 @@ function processOrders_BY_PERIOD_(startDate, endDate) {
             'Valor Médio': sum.ValorMedio || '', 'Valor Total': sum.ValorTotal || '',
             'Quantidade': sum.Quantidade || '', 'Bilhete': sum.Bilhete || '',
             'Localizador': sum.Localizador || '', 'Voucher': sum.voucher || '',
-            'Selecionado': sum.Selecionado || '', 'ID Cotação': sum.CotacaoId || ''
+            'Selecionado': sum.Selecionado || '', 'ID Cotação': sum.CotacaoId || '',
+            'Viajante': d.traveler || ''
           });
         }
       }
@@ -565,7 +604,8 @@ function processOrders_BY_PERIOD_(startDate, endDate) {
             'Nº Pedido': num, 'Empresa': app.company || '', 'Código Empresa': app.companyCode || '',
             '%': app.percent || '', 'Conta Contábil Cód.': app.contaContabilCod || '',
             'Conta Contábil Desc.': app.contaContabilDesc || '', 'Projeto Cód.': app.projectCod || '',
-            'Projeto Desc.': app.projectDesc || '', 'Observação': app.observation || ''
+            'Projeto Desc.': app.projectDesc || '',             'Observação': app.observation || '',
+            'Viajante': d.traveler || ''
           });
         }
       }
@@ -575,7 +615,8 @@ function processOrders_BY_PERIOD_(startDate, endDate) {
           var st = d.expenseStatus[es];
           statusData.push({
             'Nº Pedido': num, 'Status': st.status_name || '', 'Código': st.status_code || '',
-            'Data': st.status_date || ''
+            'Data': st.status_date || '',
+            'Viajante': d.traveler || ''
           });
         }
       }
@@ -585,7 +626,8 @@ function processOrders_BY_PERIOD_(startDate, endDate) {
           var fup = d.followUP[fu];
           followUpData.push({
             'Nº Pedido': num, 'Mensagem': fup.message || '', 'Enviado Por': fup.sentBy || '',
-            'Destinatários': fup.recipients || '', 'Data Inclusão': fup.inclusionDate || ''
+            'Destinatários': fup.recipients || '',             'Data Inclusão': fup.inclusionDate || '',
+            'Viajante': d.traveler || ''
           });
         }
       }
