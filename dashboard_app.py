@@ -548,14 +548,19 @@ else:
 
 # ── TOTAL ADIANTAMENTOS ──
 total_adiantamentos = 0.0
-if df_adiantamentos is not None and not df_adiantamentos.empty:
+if df_adiantamentos is not None and not df_adiantamentos.empty and FILTERED_PEDIDOS:
     _ad_ped_col = next((c for c in df_adiantamentos.columns if "pedido" in c.lower()), None)
-    _ad_val_idx = 9
-    _ad_val_col = df_adiantamentos.columns[_ad_val_idx] if _ad_val_idx < len(df_adiantamentos.columns) else None
-    if _ad_ped_col and _ad_val_col and FILTERED_PEDIDOS:
+    _ad_val_col = next((c for c in df_adiantamentos.columns if c.lower() == "valor total"), None)
+    if not _ad_val_col:
+        _ad_val_col = next((c for c in df_adiantamentos.columns if c.lower() == "total"), None)
+    if not _ad_val_col:
+        _ad_val_col = next((c for c in df_adiantamentos.columns if c.lower() == "valor"), None)
+    if _ad_ped_col and _ad_val_col:
         df_ad_filt = df_adiantamentos[df_adiantamentos[_ad_ped_col].astype(str).str.strip().str.lstrip("0").isin(FILTERED_PEDIDOS)].copy()
-        df_ad_filt[_ad_val_col] = df_ad_filt[_ad_val_col].apply(parse_br)
-        total_adiantamentos = df_ad_filt[_ad_val_col].sum()
+        if not df_ad_filt.empty:
+            df_ad_filt[_ad_val_col] = pd.to_numeric(df_ad_filt[_ad_val_col].apply(parse_br), errors='coerce')
+            total_adiantamentos = df_ad_filt[_ad_val_col].sum()
+    total_adiantamentos = total_adiantamentos if pd.notna(total_adiantamentos) else 0.0
 
 st.sidebar.markdown("---")
 
