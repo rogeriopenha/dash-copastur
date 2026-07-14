@@ -208,14 +208,36 @@ function appendToSheet_(data, sheetName) {
   }
   if (!data || data.length === 0) return 0;
   var added = 0;
-  if (sheet.getLastRow() === 0) {
-    var headers = Object.keys(data[0]);
-    var rows = data.map(obj => headers.map(h => {
-      var val = obj[h];
-      return val !== null && val !== undefined ? val : '';
-    }));
-    sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
-    sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+  if (sheet.getLastRow() <= 1) {
+    // Sheet is empty or has only headers
+    var existingHeaders = sheet.getLastRow() === 1 ? sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0] : [];
+    var dataHeaders = Object.keys(data[0]);
+    if (existingHeaders.length === 0) {
+      // Truly empty sheet: use data headers
+      existingHeaders = dataHeaders;
+      sheet.getRange(1, 1, 1, existingHeaders.length).setValues([existingHeaders]).setFontWeight('bold');
+    } else {
+      // Sheet has headers: add missing columns
+      var newCols = [];
+      for (var c = 0; c < dataHeaders.length; c++) {
+        if (existingHeaders.indexOf(dataHeaders[c]) === -1) newCols.push(dataHeaders[c]);
+      }
+      if (newCols.length > 0) {
+        var lastCol = sheet.getLastColumn();
+        for (var nc = 0; nc < newCols.length; nc++) {
+          sheet.getRange(1, lastCol + nc + 1).setValue(newCols[nc]).setFontWeight('bold');
+        }
+        SpreadsheetApp.flush();
+        existingHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+      }
+    }
+    var rows = data.map(function(obj) {
+      return existingHeaders.map(function(h) {
+        var val = obj[h];
+        return val !== null && val !== undefined ? val : '';
+      });
+    });
+    sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, existingHeaders.length).setValues(rows);
     added = rows.length;
   } else {
     var existingHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];

@@ -362,6 +362,7 @@ def simulate_append(existing_headers, data_rows):
     if new_cols:
         existing_headers = existing_headers + new_cols
 
+    # Build keys from existing data rows (skip header, only if data exists)
     existing_keys = set()
     new_rows = []
     for row in data_rows:
