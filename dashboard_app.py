@@ -490,7 +490,8 @@ else:
 
 # ── SINGLE ORDER FILTER ──
 st.sidebar.markdown("### 🔎 Pedido Específico")
-busca_pedido = st.sidebar.text_input("Nº do Pedido", placeholder="Ex: 1935", key="busca_pedido")
+_ped_key = st.session_state.get("_ped_key", False)
+busca_pedido = st.sidebar.text_input("Nº do Pedido", placeholder="Ex: 1935", key=f"busca_pedido_{_ped_key}")
 if busca_pedido:
     if COLS["PEDIDO"]:
         ped_str = df_filt[COLS["PEDIDO"]].astype(str).str.strip()
@@ -562,7 +563,8 @@ if COLS["EMPRESA"]:
 if filtros_aplicados > 0:
     st.sidebar.caption(f"{filtros_aplicados} filtro(s) ativo(s)")
 if st.sidebar.button("🧹 Limpar Filtros", use_container_width=True):
-    for _key in ["busca_pedido", "_busca_pedido", "_sel_viajantes"]:
+    st.session_state._ped_key = not st.session_state.get("_ped_key", False)
+    for _key in ["_busca_pedido", "_sel_viajantes"]:
         if _key in st.session_state:
             del st.session_state[_key]
     st.rerun()
