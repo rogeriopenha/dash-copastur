@@ -469,6 +469,7 @@ if busca_pedido:
             else:
                 st.sidebar.warning(f"Pedido {busca} não encontrado")
                 st.sidebar.caption(f"Exemplo: {ped_str.iloc[0] if len(ped_str) > 0 else 'sem dados'}")
+    st.session_state._busca_pedido = busca_pedido.strip() if busca_pedido else ""
 
 if COLS["STATUS"]:
     opts = sorted(df_filt[COLS["STATUS"]].dropna().unique())
@@ -508,6 +509,7 @@ if VIAJANTE_LIST:
         if viajante_pedidos and COLS["PEDIDO"]:
             df_filt = df_filt[df_filt[COLS["PEDIDO"]].astype(str).str.strip().str.lstrip("0").isin(viajante_pedidos)]
             filtros_aplicados += 1
+    st.session_state._sel_viajantes = sel_viajantes if sel_viajantes else []
 
 if COLS["EMPRESA"]:
     opts = sorted(df_filt[COLS["EMPRESA"]].dropna().unique())
@@ -778,7 +780,16 @@ with tabs[ti]:
                     if df_ed is not None and not df_ed.empty:
                         _ed_ped_col = next((c for c in df_ed.columns if "pedido" in c.lower()), None)
                         if _ed_ped_col and FILTERED_PEDIDOS:
-                            df_ed = df_ed[df_ed[_ed_ped_col].astype(str).str.strip().str.lstrip("0").isin(FILTERED_PEDIDOS)]
+                            order_mask = df_ed[_ed_ped_col].astype(str).str.strip().str.lstrip("0").isin(FILTERED_PEDIDOS)
+                            extra_mask = pd.Series(False, index=df_ed.index)
+                            viaj_sel = st.session_state.get("_sel_viajantes", [])
+                            _ed_viaj_col = next((c for c in df_ed.columns if "viajante" in c.lower()), None)
+                            if viaj_sel and _ed_viaj_col:
+                                extra_mask = extra_mask | df_ed[_ed_viaj_col].astype(str).str.strip().isin(viaj_sel)
+                            _busca_ped = st.session_state.get("_busca_pedido", "")
+                            if _busca_ped:
+                                extra_mask = extra_mask | (df_ed[_ed_ped_col].astype(str).str.strip() == _busca_ped)
+                            df_ed = df_ed[order_mask | extra_mask]
                         _ed_data_col = next((c for c in df_ed.columns if any(k in c.lower() for k in ["data", "cotacao", "emissao", "viagem", "check", "pagamento", "vencimento", "lancamento"])), None)
                         if data_ok and _ed_data_col:
                             try:
@@ -857,7 +868,16 @@ with tabs[ti]:
 
                     _st_ped_col = next((c for c in df_st.columns if "pedido" in c.lower()), None)
                     if _st_ped_col and FILTERED_PEDIDOS:
-                        df_st = df_st[df_st[_st_ped_col].astype(str).str.strip().str.lstrip("0").isin(FILTERED_PEDIDOS)]
+                        order_mask = df_st[_st_ped_col].astype(str).str.strip().str.lstrip("0").isin(FILTERED_PEDIDOS)
+                        extra_mask = pd.Series(False, index=df_st.index)
+                        viaj_sel = st.session_state.get("_sel_viajantes", [])
+                        _st_viaj_col = next((c for c in df_st.columns if "viajante" in c.lower()), None)
+                        if viaj_sel and _st_viaj_col:
+                            extra_mask = extra_mask | df_st[_st_viaj_col].astype(str).str.strip().isin(viaj_sel)
+                        _busca_ped = st.session_state.get("_busca_pedido", "")
+                        if _busca_ped:
+                            extra_mask = extra_mask | (df_st[_st_ped_col].astype(str).str.strip() == _busca_ped)
+                        df_st = df_st[order_mask | extra_mask]
                     # Apply date filter directly to subtab data
                     _st_data_col = next((c for c in df_st.columns if any(k in c.lower() for k in ["data", "cotacao", "emissao", "viagem", "check", "pagamento", "vencimento", "lancamento"])), None)
                     if data_ok and _st_data_col:
