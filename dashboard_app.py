@@ -442,11 +442,15 @@ if data_ok:
     else:
         min_d, max_d = valid_dates.min().date(), valid_dates.max().date()
         st.sidebar.markdown("### 📅 Período")
-        dc1, dc2 = st.sidebar.columns(2)
-        with dc1:
-            start_date = st.date_input("De", value=min_d, min_value=min_d, max_value=max_d, format="DD/MM/YYYY")
-        with dc2:
-            end_date = st.date_input("Até", value=max_d, min_value=min_d, max_value=max_d, format="DD/MM/YYYY")
+        _filtrar_data = st.sidebar.checkbox("Filtrar por data", value=False, key="filtrar_data")
+        if _filtrar_data:
+            dc1, dc2 = st.sidebar.columns(2)
+            with dc1:
+                start_date = st.date_input("De", value=min_d, min_value=min_d, max_value=max_d, format="DD/MM/YYYY", key="data_inicio")
+            with dc2:
+                end_date = st.date_input("Até", value=max_d, min_value=min_d, max_value=max_d, format="DD/MM/YYYY", key="data_fim")
+        else:
+            start_date, end_date = min_d, max_d
         _before = len(df_filt)
         date_mask = (df_filt[data_col].dt.date >= start_date) & (df_filt[data_col].dt.date <= end_date)
         _sem_data = df_filt[data_col].isna().sum()
