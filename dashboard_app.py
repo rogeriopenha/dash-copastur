@@ -562,9 +562,9 @@ if COLS["EMPRESA"]:
 if filtros_aplicados > 0:
     st.sidebar.caption(f"{filtros_aplicados} filtro(s) ativo(s)")
 if st.sidebar.button("🧹 Limpar Filtros", use_container_width=True):
-    st.session_state.busca_pedido = ""
-    st.session_state._busca_pedido = ""
-    st.session_state._sel_viajantes = []
+    for _key in ["busca_pedido", "_busca_pedido", "_sel_viajantes"]:
+        if _key in st.session_state:
+            del st.session_state[_key]
     st.rerun()
 
 FILTERED_PEDIDOS = set(df_filt[COLS["PEDIDO"]].astype(str).str.strip().str.lstrip("0")) if COLS["PEDIDO"] else set()
