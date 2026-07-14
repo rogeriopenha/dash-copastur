@@ -155,7 +155,17 @@ def parse_br(v):
         return 0.0
     if isinstance(v, (int, float)):
         return float(v)
-    v = str(v).strip().replace(".", "").replace(",", ".")
+    v = str(v).strip().replace("R$", "").strip()
+    if not v:
+        return 0.0
+    if "," in v:
+        v = v.replace(".", "").replace(",", ".")
+    else:
+        parts = v.split(".")
+        if len(parts) == 2 and len(parts[1]) in (1, 2):
+            pass
+        elif len(parts) > 1:
+            v = v.replace(".", "")
     try:
         return float(v)
     except:
