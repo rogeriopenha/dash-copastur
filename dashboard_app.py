@@ -17,7 +17,7 @@ st.markdown("""
     * { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; }
     .main > div { padding: 0.2rem 2rem; }
     .stApp { background: #0f1629; }
-    .kpi-card { background: #1a2340; border-radius: 14px; padding: 1.2rem 1.5rem; box-shadow: 0 4px 16px rgba(0,0,0,0.3); border-left: 4px solid #7c9ccf; margin-bottom: 0.5rem; transition: transform 0.15s ease; }
+    .kpi-card { background: #1a2340; border-radius: 14px; padding: 1.2rem 1.5rem; box-shadow: 0 4px 16px rgba(0,0,0,0.3); border-left: 4px solid #7c9ccf; margin-bottom: 0.5rem; transition: transform 0.15s ease; height: 100%; display: flex; flex-direction: column; }
     .kpi-card:hover { transform: translateY(-1px); }
     .kpi-card .label { font-size: 0.72rem; color: #8899b8; text-transform: uppercase; letter-spacing: 0.6px; font-weight: 600; }
     .kpi-card .value { font-size: 1.6rem; font-weight: 700; color: #e8edf5; margin-top: 0.15rem; }
@@ -591,13 +591,13 @@ with k2:
     pct = pendentes / total_pedidos * 100 if total_pedidos > 0 else 0
     st.markdown(f"""<div class="kpi-card"><div class="label">📋 Qtde de Pedidos</div><div class="value">{total_pedidos}</div><div class="sub">{pendentes} pendentes ({pct:.1f}%)</div></div>""", unsafe_allow_html=True)
 with k3:
-    st.markdown(f"""<div class="kpi-card"><div class="label">👤 Qtde de Viajantes</div><div class="value">{QTDE_VIAJANTES}</div><div class="sub">viajantes distintos</div></div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div class="kpi-card"><div class="label">💰 Total Adiantamentos</div><div class="value">R$ {total_adiantamentos:,.2f}</div><div class="sub">em adiantamentos</div></div>""", unsafe_allow_html=True)
 with k4:
+    st.markdown(f"""<div class="kpi-card"><div class="label">👤 Qtde de Viajantes</div><div class="value">{QTDE_VIAJANTES}</div><div class="sub">viajantes distintos</div></div>""", unsafe_allow_html=True)
+with k5:
     cat_count = df_filt[COLS["STATUS"]].nunique() if COLS["STATUS"] else 0
     forn_count = df_filt[COLS["AGENCIA"]].nunique() if COLS["AGENCIA"] else 0
     st.markdown(f"""<div class="kpi-card"><div class="label">📊 Abrangência</div><div class="value">{cat_count} status</div><div class="sub">{forn_count} agências</div></div>""", unsafe_allow_html=True)
-with k5:
-    st.markdown(f"""<div class="kpi-card"><div class="label">💰 Total Adiantamentos</div><div class="value">R$ {total_adiantamentos:,.2f}</div><div class="sub">em adiantamentos</div></div>""", unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
