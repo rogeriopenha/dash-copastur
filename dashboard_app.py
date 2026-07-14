@@ -130,9 +130,15 @@ except:
 st.sidebar.markdown("<h2 style='color:#b8cfe8; margin-bottom:0;'>Dashboard - COPASTUR</h2><p style='color:#8899b8; font-size:0.85rem; margin-top:0;'>Fujicom - Pedidos</p>", unsafe_allow_html=True)
 _email = st.session_state.authenticated_email
 st.sidebar.markdown(f"👤 {_email}", unsafe_allow_html=True)
-if st.sidebar.button("🚪 Sair", type="primary"):
-    st.session_state.authenticated_email = None
-    st.rerun()
+_col1, _col2 = st.sidebar.columns(2)
+with _col1:
+    if _col1.button("🔄 Atualizar", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
+with _col2:
+    if _col2.button("🚪 Sair", type="primary", use_container_width=True):
+        st.session_state.authenticated_email = None
+        st.rerun()
 st.sidebar.markdown("---")
 
 GCP_JSON_SECRET = st.secrets.get("gcp_service_account") or st.secrets.get("gcp_service_account_json")
