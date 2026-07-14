@@ -244,6 +244,15 @@ def load_viajantes_gsheets(json_key_file, sheet_url):
         return pd.DataFrame()
 
 @st.cache_data(ttl=300)
+def load_adiantamentos_gsheets(json_key_file, sheet_url):
+    try:
+        sheet = gsheet_connect(json_key_file, sheet_url)
+        ws = sheet.worksheet("Adiantamentos")
+        return df_from_ws(ws)
+    except:
+        return pd.DataFrame()
+
+@st.cache_data(ttl=300)
 def load_subtab(tab_name, creds_json, sheet_url):
     return load_gsheets_tab(creds_json, sheet_url, tab_name)
 
@@ -255,6 +264,7 @@ if CLOUD_MODE:
             df_pedidos = load_pedidos_gsheets(js, SHEET_URL_SECRET)
             df_reemb = load_reembolsos_gsheets(js, SHEET_URL_SECRET)
             df_viajantes = load_viajantes_gsheets(js, SHEET_URL_SECRET)
+            df_adiantamentos = load_adiantamentos_gsheets(js, SHEET_URL_SECRET)
             # Compute real totals from sub-tabs (Aereos, Hoteis, Carros, Servicos)
             with st.spinner("Calculando totais reais..."):
                 df_pedidos["total_calculado"] = compute_subtotais(df_pedidos, js, SHEET_URL_SECRET)
@@ -269,6 +279,7 @@ else:
         df_pedidos = st.session_state.df_loaded
         df_reemb = st.session_state.get("df_reemb")
         df_viajantes = st.session_state.get("df_viajantes", pd.DataFrame())
+        df_adiantamentos = st.session_state.get("df_adiantamentos", pd.DataFrame())
     elif conectar and json_key and sheet_url:
         with st.spinner("Carregando..."):
             try:
@@ -276,10 +287,12 @@ else:
                 df_pedidos = load_pedidos_gsheets(jk, sheet_url)
                 df_reemb = load_reembolsos_gsheets(jk, sheet_url)
                 df_viajantes = load_viajantes_gsheets(jk, sheet_url)
+                df_adiantamentos = load_adiantamentos_gsheets(jk, sheet_url)
                 df_pedidos["total_calculado"] = compute_subtotais(df_pedidos, jk, sheet_url)
                 st.session_state.df_loaded = df_pedidos
                 st.session_state.df_reemb = df_reemb
                 st.session_state.df_viajantes = df_viajantes
+                st.session_state.df_adiantamentos = df_adiantamentos
                 st.session_state._creds = jk
                 st.session_state._sheet_url = sheet_url
                 st.sidebar.success(f"✅ {len(df_pedidos)} registros")
@@ -533,6 +546,17 @@ if VIAJANTE_LIST and FILTERED_PEDIDOS:
 else:
     QTDE_VIAJANTES = len(VIAJANTE_LIST) if VIAJANTE_LIST else 0
 
+# ── TOTAL ADIANTAMENTOS ──
+total_adiantamentos = 0.0
+if df_adiantamentos is not None and not df_adiantamentos.empty:
+    _ad_ped_col = next((c for c in df_adiantamentos.columns if "pedido" in c.lower()), None)
+    _ad_val_idx = 9
+    _ad_val_col = df_adiantamentos.columns[_ad_val_idx] if _ad_val_idx < len(df_adiantamentos.columns) else None
+    if _ad_ped_col and _ad_val_col and FILTERED_PEDIDOS:
+        df_ad_filt = df_adiantamentos[df_adiantamentos[_ad_ped_col].astype(str).str.strip().str.lstrip("0").isin(FILTERED_PEDIDOS)].copy()
+        df_ad_filt[_ad_val_col] = df_ad_filt[_ad_val_col].apply(parse_br)
+        total_adiantamentos = df_ad_filt[_ad_val_col].sum()
+
 st.sidebar.markdown("---")
 
 st.sidebar.markdown('<div style="background:#2a3d5e; border:1px solid #4a6a8a; border-radius:10px; padding:0.7rem 1rem; box-shadow:0 3px 0 #1a2a4a, 0 4px 12px rgba(37,62,129,0.25); margin-bottom:0.8rem;">'
@@ -559,19 +583,21 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-k1, k2, k3, k4 = st.columns(4)
+k1, k2, k3, k4, k5 = st.columns(5)
 with k1:
     st.markdown(f"""<div class="kpi-card"><div class="label">💰 Total Gasto</div><div class="value">R$ {total_gasto:,.2f}</div><div class="sub">em {total_pedidos} pedidos</div></div>""", unsafe_allow_html=True)
 with k2:
     pendentes = df_filt[df_filt[COLS["STATUS"]].astype(str).str.contains("Aguardando|Pendente", case=False, na=False)].shape[0] if COLS["STATUS"] else 0
     pct = pendentes / total_pedidos * 100 if total_pedidos > 0 else 0
-    st.markdown(f"""<div class="kpi-card"><div class="label">📋 Total Pedidos</div><div class="value">{total_pedidos}</div><div class="sub">{pendentes} pendentes ({pct:.1f}%)</div></div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div class="kpi-card"><div class="label">📋 Qtde de Pedidos</div><div class="value">{total_pedidos}</div><div class="sub">{pendentes} pendentes ({pct:.1f}%)</div></div>""", unsafe_allow_html=True)
 with k3:
-    st.markdown(f"""<div class="kpi-card"><div class="label">👤 Viajantes</div><div class="value">{QTDE_VIAJANTES}</div><div class="sub">viajantes distintos</div></div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div class="kpi-card"><div class="label">👤 Qtde de Viajantes</div><div class="value">{QTDE_VIAJANTES}</div><div class="sub">viajantes distintos</div></div>""", unsafe_allow_html=True)
 with k4:
     cat_count = df_filt[COLS["STATUS"]].nunique() if COLS["STATUS"] else 0
     forn_count = df_filt[COLS["AGENCIA"]].nunique() if COLS["AGENCIA"] else 0
     st.markdown(f"""<div class="kpi-card"><div class="label">📊 Abrangência</div><div class="value">{cat_count} status</div><div class="sub">{forn_count} agências</div></div>""", unsafe_allow_html=True)
+with k5:
+    st.markdown(f"""<div class="kpi-card"><div class="label">💰 Total Adiantamentos</div><div class="value">R$ {total_adiantamentos:,.2f}</div><div class="sub">em adiantamentos</div></div>""", unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
