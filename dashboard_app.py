@@ -155,12 +155,20 @@ def parse_br(v):
         return 0.0
     if isinstance(v, (int, float)):
         return float(v)
-    v = str(v).strip().replace("R$", "").strip()
+    v = str(v).strip().replace("R$", "").replace("$", "").strip()
     if not v:
         return 0.0
-    if "," in v:
-        v = v.replace(".", "").replace(",", ".")
-    else:
+    has_comma = "," in v
+    has_dot = "." in v
+    if has_comma and has_dot:
+        last = max(v.rfind(","), v.rfind("."))
+        if v[last] == ",":
+            v = v.replace(".", "").replace(",", ".")
+        else:
+            v = v.replace(",", "")
+    elif has_comma:
+        v = v.replace(",", ".")
+    elif has_dot:
         parts = v.split(".")
         if len(parts) == 2 and len(parts[1]) in (1, 2):
             pass
