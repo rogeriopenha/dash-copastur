@@ -587,11 +587,11 @@ k1, k2, k3, k4, k5 = st.columns(5)
 with k1:
     st.markdown(f"""<div class="kpi-card"><div class="label">💰 Total Gasto</div><div class="value">R$ {total_gasto:,.2f}</div><div class="sub">em {total_pedidos} pedidos</div></div>""", unsafe_allow_html=True)
 with k2:
+    st.markdown(f"""<div class="kpi-card"><div class="label">💰 Adiantamentos</div><div class="value">R$ {total_adiantamentos:,.2f}</div><div class="sub">em adiantamentos</div></div>""", unsafe_allow_html=True)
+with k3:
     pendentes = df_filt[df_filt[COLS["STATUS"]].astype(str).str.contains("Aguardando|Pendente", case=False, na=False)].shape[0] if COLS["STATUS"] else 0
     pct = pendentes / total_pedidos * 100 if total_pedidos > 0 else 0
     st.markdown(f"""<div class="kpi-card"><div class="label">📋 Qtde de Pedidos</div><div class="value">{total_pedidos}</div><div class="sub">{pendentes} pendentes ({pct:.1f}%)</div></div>""", unsafe_allow_html=True)
-with k3:
-    st.markdown(f"""<div class="kpi-card"><div class="label">💰 Total Adiantamentos</div><div class="value">R$ {total_adiantamentos:,.2f}</div><div class="sub">em adiantamentos</div></div>""", unsafe_allow_html=True)
 with k4:
     st.markdown(f"""<div class="kpi-card"><div class="label">👤 Qtde de Viajantes</div><div class="value">{QTDE_VIAJANTES}</div><div class="sub">viajantes distintos</div></div>""", unsafe_allow_html=True)
 with k5:
