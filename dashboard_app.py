@@ -873,18 +873,6 @@ with tabs[ti]:
                             if _ed_ped_col:
                                 st.write("**Coluna pedido:**", _ed_ped_col)
                                 st.write("**Valores únicos amostra:**", df_ed[_ed_ped_col].astype(str).str.strip().str.lstrip("0").unique()[:20])
-                        _ed_data_col = next((c for c in df_ed.columns if c.lower() == "data criação"), None)
-                        if not _ed_data_col:
-                            _ed_data_col = next((c for c in df_ed.columns if any(k in c.lower() for k in ["data", "cotacao", "emissao", "viagem", "check", "pagamento", "vencimento", "lancamento"])), None)
-                        if data_ok and _ed_data_col and _filtrar_data:
-                            try:
-                                _ok_dt, _t_dt = _try_parse_date(df_ed[_ed_data_col])
-                                if _ok_dt:
-                                    df_ed[_ed_data_col] = _t_dt
-                                    _ed_date_mask = (df_ed[_ed_data_col].dt.date >= start_date) & (df_ed[_ed_data_col].dt.date <= end_date)
-                                    df_ed = df_ed[_ed_date_mask]
-                            except:
-                                pass
                         st.caption(f"{len(df_ed)} registros • {len(df_ed.columns)} colunas")
                         search_ed = st.text_input("🔎 Buscar", placeholder="Digite para filtrar...", key=f"ed_search_{ek}")
                         df_ed_disp = df_ed.copy()
@@ -972,20 +960,6 @@ with tabs[ti]:
                         if _st_ped_col:
                             st.write("**Coluna pedido:**", _st_ped_col)
                             st.write("**Valores únicos amostra:**", df_st[_st_ped_col].astype(str).str.strip().str.lstrip("0").unique()[:20])
-                    # Apply date filter directly to subtab data
-                    _st_data_col = next((c for c in df_st.columns if c.lower() == "data criação"), None)
-                    if not _st_data_col:
-                        _st_data_col = next((c for c in df_st.columns if any(k in c.lower() for k in ["data", "cotacao", "emissao", "viagem", "check", "pagamento", "vencimento", "lancamento"])), None)
-                    if data_ok and _st_data_col and _filtrar_data:
-                        try:
-                            _ok_dt, _t_dt = _try_parse_date(df_st[_st_data_col])
-                            if _ok_dt:
-                                df_st[_st_data_col] = _t_dt
-                                _st_date_mask = (df_st[_st_data_col].dt.date >= start_date) & (df_st[_st_data_col].dt.date <= end_date)
-                                df_st = df_st[_st_date_mask]
-                        except:
-                            pass
-
                     total_val = df_st[val_col].sum()
                     count_records = len(df_st)
                     avg_val = total_val / count_records if count_records > 0 else 0
