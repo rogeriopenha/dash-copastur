@@ -20,7 +20,7 @@ st.markdown("""
     .kpi-card { background: #1a2340; border-radius: 14px; padding: 1.2rem 1.5rem; box-shadow: 0 4px 16px rgba(0,0,0,0.3); border-left: 4px solid #7c9ccf; margin-bottom: 0.5rem; transition: transform 0.15s ease; height: 100%; display: flex; flex-direction: column; }
     .kpi-card:hover { transform: translateY(-1px); }
     .kpi-card .label { font-size: 0.72rem; color: #8899b8; text-transform: uppercase; letter-spacing: 0.6px; font-weight: 600; }
-    .kpi-card .value { font-size: 1.6rem; font-weight: 700; color: #e8edf5; margin-top: 0.15rem; }
+    .kpi-card .value { font-size: 1.6rem; font-weight: 700; color: #e8edf5; margin-top: 0.15rem; flex: 1; display: flex; align-items: center; justify-content: center; min-height: 2rem; }
     .kpi-card .sub { font-size: 0.78rem; color: #8899b8; margin-top: 0.1rem; }
     .card { background: #1a2340; border-radius: 14px; padding: 1.5rem; box-shadow: 0 4px 16px rgba(0,0,0,0.3); margin-bottom: 1rem; }
     .stSubheader, .card h1, .card h2, .card h3, .card h4, .card h5, .card h6,
