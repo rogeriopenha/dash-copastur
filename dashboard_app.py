@@ -863,7 +863,9 @@ with tabs[ti]:
                             if _busca_ped:
                                 extra_mask = extra_mask | (df_ed[_ed_ped_col].astype(str).str.strip() == _busca_ped)
                             df_ed = df_ed[order_mask | extra_mask]
-                        _ed_data_col = next((c for c in df_ed.columns if any(k in c.lower() for k in ["data", "cotacao", "emissao", "viagem", "check", "pagamento", "vencimento", "lancamento"])), None)
+                        _ed_data_col = next((c for c in df_ed.columns if c.lower() == "data criação"), None)
+                        if not _ed_data_col:
+                            _ed_data_col = next((c for c in df_ed.columns if any(k in c.lower() for k in ["data", "cotacao", "emissao", "viagem", "check", "pagamento", "vencimento", "lancamento"])), None)
                         if data_ok and _ed_data_col:
                             try:
                                 _ok_dt, _t_dt = _try_parse_date(df_ed[_ed_data_col])
@@ -952,7 +954,9 @@ with tabs[ti]:
                             extra_mask = extra_mask | (df_st[_st_ped_col].astype(str).str.strip() == _busca_ped)
                         df_st = df_st[order_mask | extra_mask]
                     # Apply date filter directly to subtab data
-                    _st_data_col = next((c for c in df_st.columns if any(k in c.lower() for k in ["data", "cotacao", "emissao", "viagem", "check", "pagamento", "vencimento", "lancamento"])), None)
+                    _st_data_col = next((c for c in df_st.columns if c.lower() == "data criação"), None)
+                    if not _st_data_col:
+                        _st_data_col = next((c for c in df_st.columns if any(k in c.lower() for k in ["data", "cotacao", "emissao", "viagem", "check", "pagamento", "vencimento", "lancamento"])), None)
                     if data_ok and _st_data_col:
                         try:
                             _ok_dt, _t_dt = _try_parse_date(df_st[_st_data_col])
