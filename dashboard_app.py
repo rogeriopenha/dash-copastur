@@ -460,6 +460,7 @@ if not data_ok and data_col:
     if _ok:
         df_filt[data_col] = _t
         data_ok = True
+_filtrar_data = False
 if data_ok:
     valid_dates = df_filt[data_col].dropna()
     if len(valid_dates) == 0:
@@ -852,6 +853,7 @@ with tabs[ti]:
                         df_ed = None
                     if df_ed is not None and not df_ed.empty:
                         _ed_ped_col = next((c for c in df_ed.columns if "pedido" in c.lower()), None)
+                        _debug_before = len(df_ed)
                         if _ed_ped_col and FILTERED_PEDIDOS:
                             order_mask = df_ed[_ed_ped_col].astype(str).str.strip().str.lstrip("0").isin(FILTERED_PEDIDOS)
                             extra_mask = pd.Series(False, index=df_ed.index)
@@ -863,10 +865,18 @@ with tabs[ti]:
                             if _busca_ped:
                                 extra_mask = extra_mask | (df_ed[_ed_ped_col].astype(str).str.strip() == _busca_ped)
                             df_ed = df_ed[order_mask | extra_mask]
+                        with st.expander(f"🐛 Debug {ek}", expanded=False):
+                            st.write("**FILTERED_PEDIDOS:**", FILTERED_PEDIDOS)
+                            st.write("**_busca_ped:**", st.session_state.get("_busca_pedido", ""))
+                            st.write("**Antes do filtro:**", _debug_before, "linhas")
+                            st.write("**Depois do filtro:**", len(df_ed), "linhas")
+                            if _ed_ped_col:
+                                st.write("**Coluna pedido:**", _ed_ped_col)
+                                st.write("**Valores únicos amostra:**", df_ed[_ed_ped_col].astype(str).str.strip().str.lstrip("0").unique()[:20])
                         _ed_data_col = next((c for c in df_ed.columns if c.lower() == "data criação"), None)
                         if not _ed_data_col:
                             _ed_data_col = next((c for c in df_ed.columns if any(k in c.lower() for k in ["data", "cotacao", "emissao", "viagem", "check", "pagamento", "vencimento", "lancamento"])), None)
-                        if data_ok and _ed_data_col:
+                        if data_ok and _ed_data_col and _filtrar_data:
                             try:
                                 _ok_dt, _t_dt = _try_parse_date(df_ed[_ed_data_col])
                                 if _ok_dt:
@@ -942,6 +952,7 @@ with tabs[ti]:
                             df_st["_desp_clean"] = df_st[_desp_col].astype(str).str.replace(r"\s*-.*$", "", regex=True).str.strip()
 
                     _st_ped_col = next((c for c in df_st.columns if "pedido" in c.lower()), None)
+                    _debug_before = len(df_st)
                     if _st_ped_col and FILTERED_PEDIDOS:
                         order_mask = df_st[_st_ped_col].astype(str).str.strip().str.lstrip("0").isin(FILTERED_PEDIDOS)
                         extra_mask = pd.Series(False, index=df_st.index)
@@ -953,11 +964,19 @@ with tabs[ti]:
                         if _busca_ped:
                             extra_mask = extra_mask | (df_st[_st_ped_col].astype(str).str.strip() == _busca_ped)
                         df_st = df_st[order_mask | extra_mask]
+                    with st.expander(f"🐛 Debug {sk}", expanded=False):
+                        st.write("**FILTERED_PEDIDOS:**", FILTERED_PEDIDOS)
+                        st.write("**_busca_ped:**", st.session_state.get("_busca_pedido", ""))
+                        st.write("**Antes do filtro:**", _debug_before, "linhas")
+                        st.write("**Depois do filtro:**", len(df_st), "linhas")
+                        if _st_ped_col:
+                            st.write("**Coluna pedido:**", _st_ped_col)
+                            st.write("**Valores únicos amostra:**", df_st[_st_ped_col].astype(str).str.strip().str.lstrip("0").unique()[:20])
                     # Apply date filter directly to subtab data
                     _st_data_col = next((c for c in df_st.columns if c.lower() == "data criação"), None)
                     if not _st_data_col:
                         _st_data_col = next((c for c in df_st.columns if any(k in c.lower() for k in ["data", "cotacao", "emissao", "viagem", "check", "pagamento", "vencimento", "lancamento"])), None)
-                    if data_ok and _st_data_col:
+                    if data_ok and _st_data_col and _filtrar_data:
                         try:
                             _ok_dt, _t_dt = _try_parse_date(df_st[_st_data_col])
                             if _ok_dt:
